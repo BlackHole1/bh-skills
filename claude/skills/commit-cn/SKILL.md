@@ -99,16 +99,16 @@ allowed-tools: Bash(git diff *), Bash(git log *), Bash(git status *), AskUserQue
 
 **必须等待用户明确回复，在收到回复前绝对不能调用 `git commit`。**
 
+- 用户回答**是** → 进入步骤 7
 - 用户回答**否**或**取消** → 停止，不执行提交
 - 用户要求**修改** → 根据反馈调整后返回本步骤
-- 用户回答**是** → 进入步骤 7
 
 ### 7. 执行提交
 
 仅在步骤 6 用户明确确认后执行：
 
 ```bash
-git commit -m "$(cat <<'EOF'
+git commit -s -m "$(cat <<'EOF'
 <commit message>
 EOF
 )"

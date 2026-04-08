@@ -94,20 +94,20 @@ Learn scope naming conventions from the **Recent commits** section. Match the pr
 
 Display the complete commit message in a code block, then **use `AskUserQuestion`** to ask:
 
-> "Please review the commit message above. Shall I proceed with the commit? (yes / no / edit)"
+> "Please review the commit message above. Should I commit it? (yes / no / edit)"
 
 **You MUST wait for the user's explicit answer before doing anything else. Do NOT call `git commit` until the user says yes.**
 
+- If the user says **yes** → proceed to Step 7
 - If the user says **no** or **cancel** → stop, do not commit
 - If the user requests **edits** → incorporate feedback, return to Step 6
-- If the user says **yes** → proceed to Step 7
 
 ### 7. Execute Commit
 
 Only after the user has explicitly confirmed in Step 6:
 
 ```bash
-git commit -m "$(cat <<'EOF'
+git commit -s -m "$(cat <<'EOF'
 <commit message>
 EOF
 )"

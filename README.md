@@ -6,8 +6,8 @@ Personal skills plugin for Claude Code and Codex.
 
 | Skill | Description |
 |-------|-------------|
-| `bh:commit-cn` | 生成中文 Git commit message（Conventional Commits） |
-| `bh:commit-en` | Generate English Git commit messages (Conventional Commits) |
+| `commit-cn` | 生成中文 Git commit message（Conventional Commits） |
+| `commit-en` | Generate English Git commit messages (Conventional Commits) |
 
 ---
 
@@ -66,7 +66,7 @@ mkdir -p ~/.agents/skills
 ln -s ~/.local/share/bh-skills/codex/skills ~/.agents/skills/bh
 ```
 
-Restart Codex. Skills are available as `bh:commit-cn` and `bh:commit-en`.
+Restart Codex. Skills are available as `commit-cn` and `commit-en`.
 
 #### Updating
 

@@ -95,24 +95,24 @@ Display the complete commit message in a code block, then **use `request_user_in
 
 - `header`: `Commit`
 - `id`: `commit_action`
-- `question`: `Please review the commit message above. What should I do next?`
+- `question`: `Please review the commit message above. Should I commit it?`
 - `options`:
-  1. `Edit (Recommended)` — Revise the commit message before deciding whether to commit.
-  2. `Commit` — Use the commit message above and run `git commit`.
-  3. `Cancel` — Stop without creating a commit.
+  1. `Commit (Recommended)` — Use the commit message above and run `git commit`.
+  2. `No` — Stop without creating a commit.
+  3. `Edit` — Revise the commit message before confirming again.
 
 **You MUST wait for the user's explicit selection before doing anything else. Do NOT call `git commit` until the user selects `Commit`.**
 
-- If the user selects **Cancel** → stop, do not commit
-- If the user selects **Edit** → incorporate feedback, return to Step 6
 - If the user selects **Commit** → proceed to Step 7
+- If the user selects **No** → stop, do not commit
+- If the user selects **Edit** → incorporate feedback, return to Step 6
 
 ### 7. Execute Commit
 
 Only after the user has explicitly confirmed in Step 6:
 
 ```bash
-git commit -m "$(cat <<'EOF'
+git commit -s -m "$(cat <<'EOF'
 <commit message>
 EOF
 )"

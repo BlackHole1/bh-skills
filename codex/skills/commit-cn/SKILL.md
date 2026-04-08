@@ -96,16 +96,16 @@ description: 生成中文 Git commit message，遵循 Conventional Commits 规�
 
 - `header`: `提交确认`
 - `id`: `commit_action`
-- `question`: `请确认上方的 commit message，下一步怎么处理？`
+- `question`: `请确认上方的 commit message，是否执行提交？`
 - `options`:
-  1. `修改文案 (Recommended)` — 先调整 commit message，再决定是否提交。
-  2. `执行提交` — 使用上方 commit message 执行 `git commit`。
-  3. `取消` — 停止，不创建 commit。
+  1. `执行提交 (Recommended)` — 使用上方 commit message 执行 `git commit`。
+  2. `否` — 停止，不创建 commit。
+  3. `修改` — 先调整 commit message，再重新确认。
 
 **必须等待用户明确选择，在收到“执行提交”前绝对不能调用 `git commit`。**
 
-- 用户选择**取消** → 停止，不执行提交
-- 用户选择**修改文案** → 根据反馈调整后返回本步骤
+- 用户选择**否** → 停止，不执行提交
+- 用户选择**修改** → 根据反馈调整后返回本步骤
 - 用户选择**执行提交** → 进入步骤 7
 
 ### 7. 执行提交
@@ -113,7 +113,7 @@ description: 生成中文 Git commit message，遵循 Conventional Commits 规�
 仅在步骤 6 用户明确确认后执行：
 
 ```bash
-git commit -m "$(cat <<'EOF'
+git commit -s -m "$(cat <<'EOF'
 <commit message>
 EOF
 )"
