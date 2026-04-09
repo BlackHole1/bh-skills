@@ -28,6 +28,7 @@ Generate commit messages following [Conventional Commits](https://www.convention
 1. **Title ≤ 68 characters** — the `<type>(<scope>): <description>` line
 2. **NEVER execute `git add`** — only prompt user to run it manually
 3. **NEVER auto-commit** — always wait for explicit user confirmation
+4. **Always show the full commit message first** — render the complete text in a code block before any confirmation prompt
 
 ## Execution Flow
 
@@ -91,7 +92,28 @@ Learn scope naming conventions from the **Recent commits** section. Match the pr
 
 ### 6. Present to User — MANDATORY CONFIRMATION REQUIRED
 
-Display the complete commit message in a code block, then **use `request_user_input` to ask exactly 1 question** with this structure:
+Follow this sequence exactly. Do not skip or reorder steps:
+
+1. In **the current reply**, print the complete commit message verbatim in a fenced code block
+2. Only after the code block is present, **use `request_user_input` to ask exactly 1 question**
+
+Required output template:
+
+````markdown
+```text
+<complete commit message>
+```
+````
+
+Forbidden behaviors:
+
+- Saying "I generated a commit message" without printing the full message
+- Replacing the full message with a summary, explanation, or rationale
+- Calling `request_user_input` when the current reply does not already contain the code block
+
+If the code block was not actually shown in the current reply, print the full commit message again first and only then ask for confirmation.
+
+Use this `request_user_input` structure:
 
 - `header`: `Commit`
 - `id`: `commit_action`

@@ -29,6 +29,7 @@ allowed-tools: Bash(git diff *), Bash(git log *), Bash(git status *), AskUserQue
 1. **标题 ≤ 68 字符** — `<type>(<scope>): <描述>` 这一行
 2. **绝对不执行 `git add`** — 只提示用户手动运行
 3. **绝对不自动提交** — 始终等待用户明确确认
+4. **必须先展示完整 commit message** — 在调用确认工具前，必须把完整文本原样放进代码块
 
 ## 执行流程
 
@@ -93,7 +94,28 @@ allowed-tools: Bash(git diff *), Bash(git log *), Bash(git status *), AskUserQue
 
 ### 6. 展示给用户确认 — 必须等待明确回复
 
-在代码块中展示完整 commit message，然后**使用 `AskUserQuestion` 工具**询问：
+必须严格按以下顺序执行，不能省略或调换：
+
+1. 在**当前这条回复里**先输出完整 commit message，且必须使用 fenced code block 原样展示
+2. 只有在代码块已经输出后，才能**使用 `AskUserQuestion` 工具**询问
+
+输出模板如下：
+
+````markdown
+```text
+<complete commit message>
+```
+````
+
+禁止行为：
+
+- 只说“我已经生成了一版 commit message”但不贴出完整正文
+- 用摘要、说明、理由替代完整 commit message
+- 在当前回复没有出现代码块时就直接调用 `AskUserQuestion`
+
+如果因为上下文或工具调用导致这条回复里没有成功展示代码块，必须先重新输出完整 commit message，再进入确认步骤。
+
+然后询问：
 
 > "请确认上方的 commit message，是否执行提交？（是 / 否 / 修改）"
 
