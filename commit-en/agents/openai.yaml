@@ -1,0 +1,6 @@
+interface:
+  display_name: "Commit EN"
+  short_description: "Conventional Commits message — English subject and body"
+  default_prompt: "Use $commit-en to write a commit message for the staged changes."
+policy:
+  allow_implicit_invocation: false
