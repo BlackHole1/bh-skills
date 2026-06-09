@@ -7,11 +7,14 @@
 #
 # Usage (inside Monitor): pr-watch.sh [PR_NUMBER] [OWNER/REPO]
 #
+# Poll interval defaults to 10s; override with PR_WATCH_INTERVAL (seconds).
+#
 # Requires: gh, jq, and the sibling pr-state.sh.
 set -uo pipefail
 
 pr="${1:-}"
 repo="${2:-${GH_REPO:-}}"
+interval="${PR_WATCH_INTERVAL:-10}"
 if [ -z "$pr" ]; then
   pr="$(gh pr view ${repo:+-R "$repo"} --json number -q .number 2>/dev/null)" || true
 fi
@@ -26,7 +29,7 @@ snapshot() {
 
 prev="$(snapshot)"
 while true; do
-  sleep 30
+  sleep "$interval"
   cur="$(snapshot)"
   # Skip transient read failures so they don't flap the state line.
   [ -z "$cur" ] && continue
