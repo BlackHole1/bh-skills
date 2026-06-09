@@ -182,7 +182,8 @@ Monitor(
   command: scripts/pr-watch.sh <N>
 )
 ```
-`pr-watch.sh` polls every ~30s and prints a line only when something meaningful
+`pr-watch.sh` polls every ~10s (override with `PR_WATCH_INTERVAL`) and prints a
+line only when something meaningful
 changes: check buckets, unresolved-thread count, the total review-comment count
 (so a reviewer's *reply* that doesn't resolve a thread still wakes you), or the
 merge state. You're notified on the *transition* (CI done, review posted, bot

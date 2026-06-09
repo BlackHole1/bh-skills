@@ -12,11 +12,14 @@ set -uo pipefail
 
 pr="${1:-}"
 repo="${2:-${GH_REPO:-}}"
+# Build the -R flag as an array. The `${R[@]+...}` guard keeps the expansion
+# safe under `set -u` on macOS's Bash 3.2, where a bare "${R[@]}" on an empty
+# array aborts with "R[@]: unbound variable".
 R=()
 [ -n "$repo" ] && R=(-R "$repo")
 
 if [ -z "$pr" ]; then
-  pr="$(gh pr view "${R[@]}" --json number -q .number 2>/dev/null)" || true
+  pr="$(gh pr view "${R[@]+"${R[@]}"}" --json number -q .number 2>/dev/null)" || true
 fi
 if [ -z "$pr" ]; then
   echo '{"error":"no PR (pass a PR number, and OWNER/REPO unless run inside the repo)"}'
@@ -35,10 +38,10 @@ fi
 
 # Status checks. bucket: pass|fail|pending|skipping|cancel. `gh pr checks` exits
 # non-zero when checks fail/pend but still prints JSON, so ignore the exit code.
-checks="$(gh pr checks "$pr" "${R[@]}" --json name,bucket,state 2>/dev/null)" || true
+checks="$(gh pr checks "$pr" "${R[@]+"${R[@]}"}" --json name,bucket,state 2>/dev/null)" || true
 [ -z "$checks" ] && checks='[]'
 
-prview="$(gh pr view "$pr" "${R[@]}" --json mergeable,mergeStateStatus,reviewDecision,state,title,headRefName 2>/dev/null)" || true
+prview="$(gh pr view "$pr" "${R[@]+"${R[@]}"}" --json mergeable,mergeStateStatus,reviewDecision,state,title,headRefName 2>/dev/null)" || true
 [ -z "$prview" ] && prview='{}'
 
 threads="$(gh api graphql -F owner="$owner" -F repo="$name" -F pr="$pr" -f query='
@@ -64,7 +67,11 @@ jq -n \
   ($c | map(select(.name | ascii_downcase | test($botre)))) as $bot |
   ($c | map(select(.name | ascii_downcase | test($botre) | not))) as $ci |
   (($threads.data.repository.pullRequest.reviewThreads.nodes) // []) as $t |
-  ($ci | (length > 0) and all(.bucket == "pass" or .bucket == "skipping")) as $cipass |
+  # Vacuously true when the repo has no non-bot CI checks (jq all over an empty
+  # array is true). No length>0 requirement: a repo can legitimately have zero
+  # CI, and ready_to_merge still gates on mergeStateStatus==CLEAN, which GitHub
+  # reports as UNSTABLE/BLOCKED while checks are pending or failing.
+  ($ci | all(.bucket == "pass" or .bucket == "skipping")) as $cipass |
   ($bot | all(.bucket == "pass" or .bucket == "skipping")) as $botpass |
   ($t | map(select(.isResolved == false)) | length) as $unresolved |
   {
@@ -75,6 +82,7 @@ jq -n \
     mergeStateStatus: $pr.mergeStateStatus,
     reviewDecision: $pr.reviewDecision,
     checks: ($c | map({name, bucket})),
+    ci_check_count: ($ci | length),
     ci_all_pass: $cipass,
     ci_failing: ($ci | map(select(.bucket == "fail")) | map(.name)),
     ci_pending: ($ci | map(select(.bucket == "pending")) | map(.name)),
