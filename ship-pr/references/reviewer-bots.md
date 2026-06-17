@@ -10,13 +10,15 @@ review round finishes. `pending` with everything else green means *keep waiting*
 not *ready*.
 
 **Summary comment.** CodeRabbit posts (and updates) one PR-level *issue* comment.
-Read it to know whether there's anything to do — look for either:
+`scripts/pr-comments.sh` reads it for you and surfaces the verdict in its header
+line, so you normally don't open it by hand. The verdict is one of:
 - `No actionable comments were generated in the recent review.` → nothing to fix;
   the review is clear.
 - `Actionable comments posted: N` → there are N line-level review comments to
   triage.
-It also lists files reviewed and files skipped by path filters (e.g. `*.snap`),
-which explains why a changed file may not have been commented on.
+The raw summary also lists files reviewed and files skipped by path filters (e.g.
+`*.snap`), which explains why a changed file may not have been commented on — read
+it directly (or with `--full`) on the rare occasion you need that.
 
 **Actionable findings** arrive as line-level *review comments* (the REST
 `pulls/{pr}/comments` list / GraphQL review threads). Each often includes a

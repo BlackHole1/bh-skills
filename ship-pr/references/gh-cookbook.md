@@ -25,6 +25,12 @@ gh pr view "$PR" --json mergeable,mergeStateStatus,reviewDecision,state
 
 ## Read review threads (with bodies, authors, resolution, reply ids)
 
+**Prefer the bundled script** — `scripts/pr-comments.sh "$PR"` fetches these
+threads *and* the bot summary, strips the noise (HTML comments, base64 state,
+duplicated suggestion blocks), and prints cleaned Markdown with severity tags,
+`path:line`, fix diffs, reply-to ids, and the actionable verdict. Reach for the
+raw commands below only when you need a field the script doesn't surface.
+
 Review threads live in the GraphQL API. This returns each thread's resolution
 state plus every comment's `databaseId` (the REST id you reply to):
 
@@ -58,13 +64,18 @@ gh api "repos/$OWNER/$REPO/issues/$PR/comments" \
 
 ## Reply to a review comment (dispute a false positive)
 
-Reply *inside the thread* by posting a reply to the thread's first comment id
-(`COMMENT_ID` = a `databaseId` from the GraphQL query above):
+**Prefer `scripts/pr-reply.sh "$PR" "$COMMENT_ID"`** with the body on stdin — it
+avoids the shell-quoting hazards of an inline body (an apostrophe/backtick in the
+reason breaks `-f body=`), is idempotent, and retries a transient EOF without
+double-posting. Raw form (note `-F body=@-` reads stdin; never inline a body with
+quotes):
 
 ```bash
-gh api "repos/$OWNER/$REPO/pulls/$PR/comments/$COMMENT_ID/replies" \
-  -f body="@coderabbitai This is intentional: <concise technical reason>."
+printf '%s' "@coderabbitai This is intentional: <concise technical reason>." \
+  | gh api "repos/$OWNER/$REPO/pulls/$PR/comments/$COMMENT_ID/replies" -F body=@-
 ```
+`COMMENT_ID` = a `databaseId` from the GraphQL query above (or the `reply-to id`
+that `scripts/pr-comments.sh` prints).
 
 Addressing CodeRabbit directly with `@coderabbitai` makes it respond and, if it
 agrees, resolve the thread. For a general (non-thread) note use
@@ -105,6 +116,11 @@ gh run rerun <run-id> --failed
 
 ## Merge
 
+**Prefer `scripts/pr-merge.sh "$PR"`** — it re-confirms the ready gate, preserves
+the DCO sign-off, retries a transient EOF, runs remote-only (`-R`, so gh never
+fast-forwards your local checkout), and verifies the result (idempotent: a no-op
+if already merged, never a double-merge). Raw form:
+
 ```bash
 gh pr merge "$PR" --squash --delete-branch \
   --subject "<PR title> (#$PR)" \
@@ -113,3 +129,5 @@ gh pr merge "$PR" --squash --delete-branch \
 Use `--merge` or `--rebase` instead of `--squash` only if that matches the repo's
 history convention. Confirm the strategy is enabled if a merge call is rejected
 (`gh repo view --json squashMergeAllowed,mergeCommitAllowed,rebaseMergeAllowed`).
+Verify with `gh pr view "$PR" --json state,mergedAt,mergeCommit` (not `merged` —
+that field name varies by gh version).

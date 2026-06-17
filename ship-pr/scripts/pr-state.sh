@@ -10,6 +10,13 @@
 # Requires: gh (authenticated), jq.
 set -uo pipefail
 
+# Retry transient GitHub API failures (EOF/5xx) so a flaky read never degrades the
+# snapshot. gh_retry captures stderr to detect transients, so wrapped calls drop
+# their own `2>/dev/null`.
+dir="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=/dev/null
+. "$dir/gh-retry.sh"
+
 pr="${1:-}"
 repo="${2:-${GH_REPO:-}}"
 # Build the -R flag as an array. The `${R[@]+...}` guard keeps the expansion
@@ -38,20 +45,31 @@ fi
 
 # Status checks. bucket: pass|fail|pending|skipping|cancel. `gh pr checks` exits
 # non-zero when checks fail/pend but still prints JSON, so ignore the exit code.
-checks="$(gh pr checks "$pr" "${R[@]+"${R[@]}"}" --json name,bucket,state 2>/dev/null)" || true
+checks="$(gh_retry gh pr checks "$pr" "${R[@]+"${R[@]}"}" --json name,bucket,state)" || true
 [ -z "$checks" ] && checks='[]'
 
-prview="$(gh pr view "$pr" "${R[@]+"${R[@]}"}" --json mergeable,mergeStateStatus,reviewDecision,state,title,headRefName 2>/dev/null)" || true
+prview="$(gh_retry gh pr view "$pr" "${R[@]+"${R[@]}"}" --json mergeable,mergeStateStatus,reviewDecision,state,title,headRefName,headRefOid)" || true
 [ -z "$prview" ] && prview='{}'
 
-threads="$(gh api graphql -F owner="$owner" -F repo="$name" -F pr="$pr" -f query='
+threads="$(gh_retry gh api graphql -F owner="$owner" -F repo="$name" -F pr="$pr" -f query='
 query($owner:String!,$repo:String!,$pr:Int!){
   repository(owner:$owner,name:$repo){
     pullRequest(number:$pr){
       reviewThreads(first:100){nodes{isResolved isOutdated comments(first:1){totalCount}}}
     }
   }
-}' 2>/dev/null)" || true
+}')" || true
+
+# A failed/partial threads fetch (e.g. a transient GraphQL EOF) must NOT be read
+# as "0 unresolved" — that would fabricate ready_to_merge=true and green-light a
+# merge while real unresolved review threads are hidden. A genuinely empty PR
+# still returns a non-null (possibly empty) nodes array, so this only trips on an
+# actual fetch failure, never on a real zero-thread PR.
+threads_ok=true
+if [ -z "$threads" ] \
+   || ! printf '%s' "$threads" | jq -e '.data.repository.pullRequest.reviewThreads.nodes != null' >/dev/null 2>&1; then
+  threads_ok=false
+fi
 [ -z "$threads" ] && threads='{}'
 
 # Status-check names treated as "review bot" rather than CI. Extend as needed.
@@ -61,6 +79,7 @@ jq -n \
   --argjson checks "$checks" \
   --argjson pr "$prview" \
   --argjson threads "$threads" \
+  --argjson threads_ok "$threads_ok" \
   --arg botre "$botre" \
   --arg num "$pr" '
   ($checks // []) as $c |
@@ -80,6 +99,7 @@ jq -n \
     title: $pr.title,
     mergeable: $pr.mergeable,
     mergeStateStatus: $pr.mergeStateStatus,
+    head: $pr.headRefOid,
     reviewDecision: $pr.reviewDecision,
     checks: ($c | map({name, bucket})),
     ci_check_count: ($ci | length),
@@ -87,11 +107,12 @@ jq -n \
     ci_failing: ($ci | map(select(.bucket == "fail")) | map(.name)),
     ci_pending: ($ci | map(select(.bucket == "pending")) | map(.name)),
     review_bot_checks: ($bot | map({name, bucket})),
-    review_threads_total: ($t | length),
-    review_threads_unresolved: $unresolved,
-    review_comment_count: ($t | map(.comments.totalCount) | add // 0),
+    threads_fetched: $threads_ok,
+    review_threads_total: (if $threads_ok then ($t | length) else null end),
+    review_threads_unresolved: (if $threads_ok then $unresolved else null end),
+    review_comment_count: (if $threads_ok then ($t | map(.comments.totalCount) | add // 0) else null end),
     ready_to_merge: (
-      $cipass and $botpass and ($unresolved == 0)
+      $threads_ok and $cipass and $botpass and ($unresolved == 0)
       and ($pr.mergeable == "MERGEABLE")
       and ($pr.mergeStateStatus == "CLEAN")
     )

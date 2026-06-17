@@ -106,9 +106,13 @@ scripts/pr-state.sh <PR>
 
 It prints a compact JSON with: each check's bucket, whether the non-bot checks
 all pass, the reviewer-bot check state, counts of review threads and *unresolved*
-review threads, `mergeable`, and `mergeStateStatus`. Read
-`references/gh-cookbook.md` for the raw commands if you need detail or the script
-is unavailable.
+review threads, `mergeable`, and `mergeStateStatus`. It also reports
+`threads_fetched`: if a transient GraphQL hiccup makes the thread fetch fail, the
+script reports `threads_fetched:false`, nulls the thread counts, and forces
+`ready_to_merge:false` — so a stale read can never green-light a merge with
+hidden unresolved threads. `ready_to_merge:false` with `threads_fetched:false`
+means *retry the snapshot*, not *merge*. Read `references/gh-cookbook.md` for the
+raw commands if you need detail or the script is unavailable.
 
 ### 2. Classify the current state
 
@@ -124,9 +128,10 @@ Decide which situation you're in (check in this order):
 
 A note on the reviewer bot: a *passing* bot check with **zero actionable
 comments** is the clean case. CodeRabbit states this explicitly in its summary
-comment ("No actionable comments were generated…" or "Actionable comments
-posted: N"). Read that summary to confirm before treating the review as clear —
-see `references/reviewer-bots.md`.
+("No actionable comments were generated…" or "Actionable comments posted: N");
+`scripts/pr-comments.sh` extracts that verdict for you into its header line, so
+you don't have to fetch and scan the summary comment by hand. See
+`references/reviewer-bots.md` for what the verdict means.
 
 ### 3. Act
 
@@ -146,10 +151,24 @@ Pull the failing job's log, find the cause, and decide:
 
 #### 3b. Triage review findings
 
-Read every unresolved thread (commands in `references/gh-cookbook.md`), and read
-the code each one points at **in the worktree** (`scripts/pr-worktree.sh ensure
-<PR>`, synced to the PR head) — so you judge the PR's real current code, not the
-user's checkout. For each, make a judgment call:
+Get the findings in triage-ready form — don't hand-fetch raw GraphQL/REST and
+parse it yourself (that burns tokens on HTML comments, base64 state blobs, and
+duplicated suggestion blocks the bots bury their point in):
+
+```bash
+scripts/pr-comments.sh <PR>            # cleaned Markdown of every unresolved finding
+```
+
+It prints, per finding: severity/type tags, `path:line`, the cleaned finding
+text, one suggested-fix diff, and the `reply-to id` — plus a header tally
+(unresolved/resolved counts, by-severity, and the bot's "Actionable comments
+posted: N" / "No actionable comments" verdict). It strips the noise in the
+script so you read only signal. Add `--all` to include resolved threads,
+`--full` to keep every collapsible section, `--json` for structured output.
+
+Then read the code each finding points at **in the worktree**
+(`scripts/pr-worktree.sh ensure <PR>`, synced to the PR head) — so you judge the
+PR's real current code, not the user's checkout. For each, make a judgment call:
 
 - **Real issue** → fix it in the worktree. For a handful of small, clear
   findings, just fix them. For many findings, or subtle/cross-cutting ones, use
@@ -159,9 +178,17 @@ user's checkout. For each, make a judgment call:
   (`git -C "$wt" push origin HEAD:<headRefName>`). The bot re-reviews the new
   commit and resolves the thread itself.
 - **False positive / won't-fix** → **reply** to that specific review comment
-  explaining why (concise, technical, points at the code). Then wait for the bot
-  to respond. Do **not** resolve the thread. CodeRabbit will either accept (and
-  resolve) or push back; if it pushes back with a fair point, reconsider.
+  explaining why (concise, technical, points at the code). Use the `reply-to id`
+  that `pr-comments.sh` printed for the finding and pipe the body in (never inline
+  — an apostrophe or backtick in your reasoning breaks the shell):
+  ```bash
+  printf '%s' "@coderabbitai This is intentional: <code-grounded reason>." \
+    | scripts/pr-reply.sh <PR> <reply-to id>
+  ```
+  It posts once, won't double-post on a transient EOF, and is a no-op if you
+  already replied. Then wait for the bot to respond. Do **not** resolve the
+  thread. CodeRabbit will either accept (and resolve) or push back; if it pushes
+  back with a fair point, reconsider.
 
 Batch your response: fix all the real ones in one commit/push where they're
 related, and post replies to the false positives, then go wait. One push +
@@ -183,13 +210,22 @@ Monitor(
 )
 ```
 `pr-watch.sh` polls every ~10s (override with `PR_WATCH_INTERVAL`) and prints a
-line only when something meaningful
-changes: check buckets, unresolved-thread count, the total review-comment count
-(so a reviewer's *reply* that doesn't resolve a thread still wakes you), or the
-merge state. You're notified on the *transition* (CI done, review posted, bot
-replied/resolved, ready to merge) instead of on a timer. Pair it with a long
-fallback heartbeat (e.g. `ScheduleWakeup` ~1500s) in case an event is missed.
-When the terminal condition is reached, `TaskStop` the monitor.
+line only when something meaningful changes: check buckets, unresolved-thread
+count, review-comment count, head SHA, or merge state. It is **debounced** — it
+carries the last stable merge state through GitHub's post-push `UNKNOWN`/`null`
+recompute, treats a vanishing bot check as `pending`, and requires a state to
+hold for two polls before emitting — so reviewer-bot churn and one-poll flashes
+(including a transient `ready=true`) never wake you. You're notified on the real
+*transition* (CI done, review posted, bot replied/resolved, ready to merge)
+instead of on a timer. Pair it with a long fallback heartbeat (e.g.
+`ScheduleWakeup` ~1500s) in case an event is missed. When the terminal condition
+is reached, `TaskStop` the monitor.
+
+**Never `sleep N && <poll>`.** Chaining a sleep before a command is blocked by
+the harness. To wait on a *state transition*, use the Monitor above; to wait on a
+command you started, run it in the background. A bare post-push `merge=UNKNOWN`
+or an empty bot bucket is expected recompute churn, not a stuck PR — the watcher
+already absorbs it, so don't hand-roll "real snapshot" confirmation reads.
 
 **Composed under /loop:** if the user wrapped this in `/loop`, don't arm your own
 monitor — do a single assess→classify→act cycle and return. `/loop` re-invokes
@@ -198,19 +234,25 @@ you on its own cadence. (`/loop` with no interval self-paces and is a good fit.)
 ### 5. Merge
 
 Only when **all** of: every check `pass`, **0 unresolved** review threads,
-`mergeable=MERGEABLE`, `mergeStateStatus=CLEAN`.
+`mergeable=MERGEABLE`, `mergeStateStatus=CLEAN` — i.e. `pr-state.sh` reports
+`ready_to_merge:true` (which already requires `threads_fetched:true`, so a
+degraded read can't green-light a merge).
 
-Match the repo's merge convention (most squash-merge repos show single-line
-`type(scope): subject (#NNN)` history). Default to squash:
+Use the bundled helper — it re-confirms that gate, preserves the repo's DCO
+sign-off, retries a transient `EOF`, and verifies the result so a flaky merge
+call never double-merges or looks like a failure:
 
 ```bash
-gh pr merge <N> --squash --delete-branch \
-  --subject "<PR title> (#<N>)" \
-  --body "<short rationale; preserve any Signed-off-by if the repo uses DCO>"
+scripts/pr-merge.sh <N>          # squash by default; --strategy merge|rebase, --subject/--body to override
 ```
-Then clean up — `scripts/pr-worktree.sh remove <PR>` if you created one, and
-`TaskStop` any monitor you armed — and report: merge commit, what was fixed, what
-was replied to. Don't schedule further work — the goal is done.
+
+It refuses (exit 3) if the PR isn't ready, is a no-op if already merged, and
+prints the merge commit. Match the repo's convention (most squash-merge repos
+show single-line `type(scope): subject (#NNN)` history; the default subject is
+`<PR title> (#N)`). Then clean up — `scripts/pr-worktree.sh remove <PR>` if you
+created one, and `TaskStop` any monitor you armed — and report: merge commit,
+what was fixed, what was replied to. Don't schedule further work — the goal is
+done.
 
 ## Why you don't resolve threads
 
@@ -234,14 +276,31 @@ waiting indefinitely. See `references/reviewer-bots.md`.
 
 ## Bundled resources
 
+All bundled scripts retry transient GitHub API failures (`EOF`/5xx) internally,
+so prefer them over hand-issued `gh api` — you won't have to babysit a flaky read.
+
 - `scripts/pr-state.sh <PR> [OWNER/REPO]` — one-shot JSON snapshot of CI +
-  review + merge state. Use it for every Assess. The repo arg is optional when
-  you run inside the target repo (gh infers it from the working directory).
-- `scripts/pr-watch.sh <PR> [OWNER/REPO]` — change-emitting poll loop for the
-  `Monitor` tool.
+  review + merge state, incl. `threads_fetched` and `ready_to_merge`. Use it for
+  every Assess. The repo arg is optional when you run inside the target repo.
+- `scripts/pr-comments.sh <PR> [OWNER/REPO] [--all|--full|--json|--no-summary]` —
+  fetch review threads + the reviewer-bot summary and print **cleaned,
+  triage-ready Markdown**: per-finding severity/type tags, `path:line`, the
+  finding text with HTML comments / base64 / duplicated suggestion blocks
+  stripped, one fix diff, the reply-to id, and a header tally with the bot's
+  actionable verdict. The moment a bot posts findings or `unresolved>0`, run this
+  **first** — don't re-fetch raw `gh api graphql` or grep the summary by hand.
+- `scripts/pr-reply.sh <PR> <reply-to id> [OWNER/REPO]` — post an in-thread reply
+  (body from stdin or `--body-file`, never inline) to dispute a false positive;
+  idempotent, retries transient EOF without double-posting.
+- `scripts/pr-merge.sh <PR> [OWNER/REPO] [--subject|--body|--strategy]` —
+  gated, DCO-preserving, idempotent, verify-after merge. Refuses unless ready.
+- `scripts/pr-watch.sh <PR> [OWNER/REPO]` — **debounced** change-emitting poll
+  loop for the `Monitor` tool (absorbs merge-recompute / bot-edit churn).
 - `scripts/pr-worktree.sh ensure|remove|path <PR> [OWNER/REPO]` — create / refresh
   / tear down an isolated detached worktree (or clone) synced to the PR head, so
   triage and fixes never touch the user's working tree.
+- `scripts/gh-retry.sh` — `gh_retry <cmd…>` wrapper the other scripts source to
+  retry transient GitHub API failures; rarely called directly.
 - `references/gh-cookbook.md` — exact `gh` / `gh api` / GraphQL commands for
   reading checks, reading and replying to review threads, re-running jobs, and
   merging.
