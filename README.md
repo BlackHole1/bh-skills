@@ -12,14 +12,18 @@ Writes a [Conventional Commits](https://www.conventionalcommits.org/) message
 for your **staged** changes: an English subject line plus a Chinese body that
 explains *why* the change was made. It reads the staged diff, infers the type
 and scope from the changes and your recent history, shows you the complete
-message, and waits for your confirmation before committing — it never runs
-`git add` and never commits on its own. Manual-invocation only: run
-`/commit-zh`.
+message, and then commits it — running the skill is your go-ahead, so it won't
+make you click through a prompt you'd just approve anyway. It never runs
+`git add` and never pushes, and a message you don't like is one
+`git commit --amend` away. Want to review or pick first? Add `-i` /
+`--interactive` (or say "让我确认") and it shows the message and asks before
+committing. Manual-invocation only: run `/commit-zh`.
 
 ### `commit-en` — English commit messages
 
 The same workflow as `commit-zh`, but the entire message — subject and body —
-is in English. Manual-invocation only: run `/commit-en`.
+is in English, with the same `-i` / `--interactive` review option.
+Manual-invocation only: run `/commit-en`.
 
 ### `ship-pr` — babysit a PR until it merges
 

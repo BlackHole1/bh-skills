@@ -11,13 +11,15 @@
 为你**已暂存（staged）**的改动生成一条 [Conventional Commits](https://www.conventionalcommits.org/)
 规范的提交信息：标题用英文，正文用中文解释这次改动**为什么**要做。它会读取
 staged diff，结合改动内容与最近的提交历史推断 type 和 scope，把完整信息展示给你，
-并在提交前等待你确认——它**绝不执行 `git add`，也绝不自动提交**。仅显式调用：
-运行 `/commit-zh`。
+然后**直接提交**——运行这个 skill 本身就是你的提交意图，不再让你点一个反正都会同意的
+确认框。它**绝不执行 `git add`、绝不 push**，对结果不满意一条 `git commit --amend`
+即可改。想先复核或挑选？加上 `-i` / `--interactive`（或说“让我确认”），它会展示
+信息并先征求你的选择再提交。仅显式调用：运行 `/commit-zh`。
 
 ### `commit-en` — 英文 commit message
 
-与 `commit-zh` 流程相同，但整条信息（标题与正文）都使用英文。仅显式调用：
-运行 `/commit-en`。
+与 `commit-zh` 流程相同，但整条信息（标题与正文）都使用英文，同样支持 `-i` /
+`--interactive` 复核选项。仅显式调用：运行 `/commit-en`。
 
 ### `ship-pr` — 全程看护 PR 直到合并
 

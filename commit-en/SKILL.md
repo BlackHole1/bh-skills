@@ -1,13 +1,14 @@
 ---
 name: commit-en
-description: Generate a Git commit message following Conventional Commits, entirely in English (subject and body). Manual-invocation only — run it explicitly with /commit-en (Claude Code) or $commit-en (Codex). Use it for committing staged changes when you want an all-English commit message.
+description: Generate a Git commit message following Conventional Commits, entirely in English (subject and body). Manual-invocation only — run it explicitly with /commit-en (Claude Code) or $commit-en (Codex). Use it for committing staged changes when you want an all-English commit message. Commits directly by default; pass -i / --interactive (or say "let me confirm") to review and choose before it commits.
 disable-model-invocation: true
-allowed-tools: Bash(git diff *), Bash(git log *), Bash(git status *), AskUserQuestion, request_user_input
+argument-hint: "[-i | --interactive]"
+allowed-tools: Bash(git diff *), Bash(git log *), Bash(git status *), Bash(git commit *), AskUserQuestion, request_user_input
 ---
 
 # Commit EN
 
-Generate a [Conventional Commits](https://www.conventionalcommits.org/) message in **English**.
+Write a [Conventional Commits](https://www.conventionalcommits.org/) message — subject and body both in **English** — for the staged changes, then commit it. **Two modes:** by default, show the message and commit it directly — running the skill is your go-ahead; if the user opts into interactive mode (`-i` / `--interactive`, or "let me confirm" / "let me review"), show the message and ask before committing.
 
 ## Git Context
 
@@ -16,43 +17,41 @@ Generate a [Conventional Commits](https://www.conventionalcommits.org/) message 
 **Status:**
 !`git status --short 2>/dev/null`
 
-**Diff stat:**
+**Staged files (complete list):**
 !`git diff --staged --stat 2>/dev/null`
 
 **Recent commits (style reference):**
 !`git log --oneline -5 2>/dev/null`
 
-**Staged diff:**
+**Staged diff** — first 500 of !`git diff --staged 2>/dev/null | wc -l | tr -d ' '` lines:
 !`git diff --staged 2>/dev/null | head -500`
 
-## Critical Constraints
+## What keeps this safe
 
-Staging and committing are the user's decisions, and a commit that appears
-without review erodes their trust in the tool. Treat the rules below as
-non-negotiable for that reason:
+Running `/commit-en` is itself the decision to commit, so by default the skill writes the message and commits it — no prompt to rubber-stamp. What keeps that safe is non-negotiable:
 
-1. **Subject ≤ 68 characters** — the `<type>(<scope>): <description>` line
-2. **NEVER run `git add`** — only prompt the user to stage files manually
-3. **NEVER auto-commit** — always wait for explicit user confirmation
-4. **Always show the full commit message first** — render the complete text in a fenced code block before any confirmation prompt
+- **Never run `git add`.** Commit only what the user already staged; if nothing is staged, stop and say so — don't stage on their behalf.
+- **Never push, and never rewrite existing commits.** The skill makes exactly one new commit from the staged changes and nothing else. A message you don't like is one `git commit --amend` away from fixed.
+- **Always show the complete message before committing — even in the default direct path.** Nothing is hidden behind a summary, and there's always a record to amend from.
 
-## Execution Flow
+Want to review or pick before it lands? Add `-i` / `--interactive` (or just say "let me confirm" / "let me review"), and the skill shows the message and asks first instead of committing straight away. `-y` / `--yes` is also accepted and simply affirms the default.
 
-### 0. Validate Environment
+## 1. Validate the environment
 
-- If `NOT_A_GIT_REPO` appears in Repository → tell the user "Not a git repository.", stop
-- If Status is empty → tell the user "No changes in the working tree or staging area.", stop
-- If Diff stat is empty (nothing staged) → tell the user "No staged changes. Run `git add` to stage files first.", stop
+Read the injected context and stop early when the repo isn't ready:
 
-### 1. Analyze Changes
+- Repository shows `NOT_A_GIT_REPO` → say "Not a git repository." and stop.
+- Status is empty → say "No changes in the working tree or staging area." and stop.
+- Staged files is empty (nothing staged) → say "No staged changes. Run `git add` to stage files first." and stop.
 
-Use the injected context above:
+## 2. Understand the change
 
-- **Diff stat** → file-level overview; identify which modules/areas changed
-- **Staged diff** → understand the actual code changes, intent, and impact
-- **If the diff is exactly 500 lines, assume it may be truncated** → generate from available context and tell the user the diff was large
+- **Staged files / diff stat** maps *what* changed at the file level — it stays complete even when the diff below is truncated.
+- **Staged diff** shows the actual edits and their intent. If the line count above exceeds 500, the diff is truncated: rely on the diff stat for coverage and run `git diff --staged -- <path>` to read any file you still need in full. Pull only what you need to describe the change accurately.
 
-### 2. Determine Type
+Work out *why* the change was made, not just which lines moved — the body depends on it.
+
+## 3. Choose the type
 
 | Type | When to use |
 |------|-------------|
@@ -66,77 +65,76 @@ Use the injected context above:
 | `build` | Build config or dependencies |
 | `ci` | CI pipeline changes |
 | `chore` | Miscellaneous maintenance tasks |
-| `revert` | Reverting a previous commit (body must cite the reverted commit SHA or original subject) |
+| `revert` | Reverting a previous commit (cite the reverted SHA or subject in the body) |
 
-### 3. Infer Scope
+## 4. Infer the scope
 
-In priority order:
+Pick the narrowest scope that honestly describes the change, in priority order:
 
-1. **Branch name pattern** — `feature/auth-login` → `auth`
-2. **Single directory changed** — all files under `src/auth/` → `auth`
-3. **Single module/component** — only `Button.tsx` changed → `button`
-4. **Multiple related areas** — comma-separated: `auth,api` (non-standard extension; some CI tooling may reject it)
-5. **Widespread changes** — omit the scope
+1. **Branch name** — `feature/auth-login` → `auth`
+2. **Single directory** — everything under `src/auth/` → `auth`
+3. **Single module/component** — only `Button.tsx` → `button`
+4. **Several related areas** — comma-separated `auth,api` (a non-standard extension; some CI linters reject it)
+5. **Widespread** — omit the scope
 
-Match the scope naming style from the **Recent commits** section to stay consistent with the project.
+Match the scope naming style in **Recent commits** so the history stays consistent.
 
-### 4. Write the Subject (≤ 68 characters)
+## 5. Write the subject (≤ 68 characters)
 
-- Use the imperative mood: "add", "fix", "update" — NOT "added", "fixes", "updated"
-- Be specific: "add JWT refresh endpoint", NOT "update auth"
-- No trailing period
-- Lowercase the first letter after the colon
+`type(scope): description` — one space after the colon.
 
-### 5. Write the Body
+- Imperative mood: "add", "fix", "update" — not "added", "fixes", "updated"
+- Specific over vague: "add JWT refresh endpoint", not "update auth"
+- Lowercase the first letter of the description; no trailing period
+- Keep the whole line ≤ 68 characters so it survives `git log` and GitHub truncation
 
-**Always include a body.** Write prose sentences explaining **why** the change was made:
+## 6. Write the body (English)
 
-- Separate it from the subject with a blank line
-- Explain the reason, context, or trade-offs — not a list of what changed
-- Wrap each line at ≤ 72 characters
-- **Write the body in English**
+The diff already records *what* changed; the body's lasting value is *why*. Include one whenever there's a reason, context, or trade-off worth recording — which is almost every change:
 
-### 6. Confirm With the User — MANDATORY
+- Blank line after the subject, then prose explaining the *why* — not a restated changelog
+- Wrap lines at ≤ 72 characters
+- Keep it proportional to the change: a subtle fix earns a short paragraph; a one-line refactor earns one sentence
 
-Follow this sequence exactly. Do not skip or reorder the steps:
+**When a body would add nothing, omit it.** Some changes are their own explanation — a pure typo fix, a version bump, a lockfile refresh. Forcing a "why" paragraph onto them produces filler that future readers have to wade through. Prefer no body over a padded one. But if you can name any non-obvious reason, context, or risk, include it — when in doubt, write the body.
 
-1. In **the current reply**, print the complete commit message verbatim inside a fenced code block:
+**Breaking changes:** when the change breaks an existing API or behavior, signal it both ways the spec allows — a `!` before the colon (`feat(api)!: …`) *and* a `BREAKING CHANGE: <what breaks + how to migrate>` footer after a blank line. This is the major-version signal; omitting it makes the break silent.
 
-   ````markdown
-   ```text
-   <complete commit message>
-   ```
-   ````
+**Issue references:** add a `Closes #123` / `Refs #123` footer only when the diff or branch clearly ties to that issue — don't invent one.
 
-2. Only after the code block is present, ask for confirmation using the tool available in your environment:
-   - **Claude Code** → `AskUserQuestion`
-   - **Codex** → `request_user_input`
+## 7. Show the message, then commit (or ask, if requested)
 
-   Use this structure:
-   - `header`: `Commit`
-   - `question`: `Please review the commit message above. Should I commit it?`
-   - `options`:
-     1. `Commit (Recommended)` — Run `git commit` with the message above.
-     2. `No` — Stop without creating a commit.
-     3. `Edit` — Revise the commit message, then confirm again.
+**Always print the complete message first** — in the current reply, verbatim, in a fenced block. This applies in *both* modes:
 
-Forbidden behaviors:
+````markdown
+```text
+<complete commit message>
+```
+````
 
-- Saying "I generated a commit message" without printing the full message
-- Replacing the full message with a summary, explanation, or rationale
-- Calling the confirmation tool before the code block appears in the current reply
+Then branch on the mode:
 
-If the code block was not shown in the current reply, print the full commit message again first, then ask.
+### Default — commit directly
+Running the skill is the go-ahead, so don't ask. After the block is printed, go straight to step 8, then report what landed: the subject line and the new short SHA (`git rev-parse --short HEAD`). The default path skips *only* the prompt — every other safeguard holds: validation in step 1 still stops on a no-repo or nothing-staged state instead of committing, and you still never run `git add`.
 
-**Wait for an explicit choice. NEVER run `git commit` before the user selects "Commit".**
+### Interactive mode — `-i` / `--interactive`, or "let me confirm" / "let me review" / "let me choose"
+The user wants to decide, so after the block is visible, ask with the tool your environment provides — `AskUserQuestion` (Claude Code) or `request_user_input` (Codex):
+- `header`: `Commit`
+- `question`: `Please review the commit message above. Should I commit it?`
+- `options`:
+  1. `Commit (Recommended)` — run `git commit` with the message above
+  2. `No` — stop without committing
+  3. `Edit` — revise, then confirm again
 
-- User selects **Commit** → go to Step 7
-- User selects **No** → stop, do not commit
-- User selects **Edit** → incorporate the feedback, return to Step 6
+Never call the confirmation tool before the block appears, and never swap the full message for a summary or rationale. Then wait for the explicit choice:
 
-### 7. Execute the Commit
+- **Commit** → step 8
+- **No** → stop, don't commit
+- **Edit** → fold in the feedback and return to step 7
 
-Only after the user has explicitly confirmed in Step 6:
+## 8. Commit
+
+Once you reach this step — directly in the default path, or after the user confirms in interactive mode:
 
 ```bash
 git commit -s -m "$(cat <<'EOF'
@@ -144,14 +142,6 @@ git commit -s -m "$(cat <<'EOF'
 EOF
 )"
 ```
-
-## Language Rules
-
-| Part | Language |
-|------|----------|
-| Type / Scope / Footer keywords | Always English |
-| Subject description | English |
-| Body | English |
 
 ## Examples
 
@@ -175,4 +165,20 @@ refactor(db): extract query builder into separate module
 The query construction logic was duplicated across 4 repository
 files. Centralizing it reduces maintenance burden and makes it
 easier to add query caching later.
+```
+
+A self-explanatory change needs no body:
+
+```
+chore: bump version to 2.3.1
+```
+
+```
+feat(api)!: replace positional args in createUser with options object
+
+The positional signature had grown to five arguments and was easy to
+misorder. An options object makes each field explicit at the call site.
+
+BREAKING CHANGE: createUser(name, email, role) is now
+createUser({ name, email, role }).
 ```
