@@ -97,6 +97,10 @@ The diff already records *what* changed; the body's lasting value is *why*. Incl
 - Wrap lines at ≤ 72 characters
 - Keep it proportional to the change: a subtle fix earns a short paragraph; a one-line refactor earns one sentence
 
+**Wrap code in backticks.** Set off function and method calls, macros, and expressions — `isolate->SetWasmStreamingCallback()`, `WebAssembly.compileStreaming()`, `CHECK(!impl.IsEmpty())`. It pays off most for tokens carrying punctuation like `()`, `->`, or `!`, which read awkwardly bare and leave the reader guessing where the symbol ends; plain filenames, flags, and ordinary identifiers are a judgment call — backtick them only when it genuinely aids reading, not by reflex. Backticks read especially well in a Chinese body, where a bare `foo()` would otherwise blur into the surrounding 中文. The commit is written through a single-quoted heredoc (step 8), so backticks, `$`, `!`, and backslashes reach the message literally — write them as-is and never escape them.
+
+**Break a multi-part why into paragraphs.** When the reasoning has distinct beats, separate them with a blank line instead of packing everything into one block. A reliable shape is 起因 → 影响 → 修复 (cause → effect → fix): what changed upstream, what broke as a result, and what this commit does about it. The blank lines are what let a reader follow the thread.
+
 **When a body would add nothing, omit it.** Some changes are their own explanation — a pure typo fix, a version bump, a lockfile refresh. Forcing a "why" paragraph onto them produces filler that future readers have to wade through. Prefer no body over a padded one. But if you can name any non-obvious reason, context, or risk, include it — when in doubt, write the body.
 
 **Breaking changes:** when the change breaks an existing API or behavior, signal it both ways the spec allows — a `!` before the colon (`feat(api)!: …`) *and* a `BREAKING CHANGE: <what breaks + how to migrate>` footer after a blank line. Keep the `BREAKING CHANGE:` keyword in English (it's a spec token); the description after it may be Chinese. This is the major-version signal; omitting it makes the break silent.
@@ -156,7 +160,7 @@ refresh token 以避免 XSS 攻击风险。
 ```
 fix(api): fix null pointer exception in user query
 
-之前代码假设 user 对象始终存在，但在未登录状态下会导致
+之前代码假设 `user` 对象始终存在，但在未登录状态下会导致
 崩溃。通过提前判空并返回统一错误格式修复此问题。
 ```
 
@@ -165,6 +169,24 @@ refactor(db): extract query builder into standalone module
 
 查询构建代码分散在 4 个 repository 文件中导致重复维护。
 集中管理后更易于后续添加查询缓存机制。
+```
+
+A multi-part *why* reads best as separate paragraphs, with code set off in
+backticks (subject English, body 中文):
+
+```
+fix(pool): release connection on context cancel
+
+当调用方在查询中途取消了请求 context 时，`Pool.Acquire()` 已经返回，
+但其后的 `conn.Release()` 始终没有执行——取消在 `defer` 注册之前就
+展开了调用栈。
+
+在持续的取消请求冲击下，连接池每次都会泄漏一个连接，最终因为
+`MaxConns` 个连接全部借出且无一归还，所有调用方都阻塞在
+`Acquire()` 上。表面看像死锁，实际是连接耗尽。
+
+在成功获取连接后、任何可能感知取消的逻辑之前，立即用 `defer`
+注册释放，使连接在每条路径上都能回到池中。
 ```
 
 A self-explanatory change needs no body (subject stays English):
@@ -179,6 +201,6 @@ feat(api)!: replace positional args in createUser with options object
 createUser 的位置参数已增长到五个，调用方很容易传错顺序。
 改用选项对象后，每个字段在调用处都显式可读。
 
-BREAKING CHANGE: createUser(name, email, role) 现在改为
-createUser({ name, email, role })，旧的位置参数调用需要迁移。
+BREAKING CHANGE: `createUser(name, email, role)` 现在改为
+`createUser({ name, email, role })`，旧的位置参数调用需要迁移。
 ```

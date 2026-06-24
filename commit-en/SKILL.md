@@ -96,6 +96,10 @@ The diff already records *what* changed; the body's lasting value is *why*. Incl
 - Wrap lines at ≤ 72 characters
 - Keep it proportional to the change: a subtle fix earns a short paragraph; a one-line refactor earns one sentence
 
+**Wrap code in backticks.** Set off function and method calls, macros, and expressions — `isolate->SetWasmStreamingCallback()`, `WebAssembly.compileStreaming()`, `CHECK(!impl.IsEmpty())`. It pays off most for tokens carrying punctuation like `()`, `->`, or `!`, which read awkwardly bare and leave the reader guessing where the symbol ends; plain filenames, flags, and ordinary identifiers are a judgment call — backtick them only when it genuinely aids reading, not by reflex. The commit is written through a single-quoted heredoc (step 8), so backticks, `$`, `!`, and backslashes reach the message literally — write them as-is and never escape them.
+
+**Break a multi-part why into paragraphs.** When the reasoning has distinct beats, separate them with a blank line instead of packing everything into one block. A reliable shape is cause → effect → fix: what changed upstream, what broke as a result, and what this commit does about it. Each paragraph stays wrapped at ≤ 72; the blank lines are what let a reader follow the thread.
+
 **When a body would add nothing, omit it.** Some changes are their own explanation — a pure typo fix, a version bump, a lockfile refresh. Forcing a "why" paragraph onto them produces filler that future readers have to wade through. Prefer no body over a padded one. But if you can name any non-obvious reason, context, or risk, include it — when in doubt, write the body.
 
 **Breaking changes:** when the change breaks an existing API or behavior, signal it both ways the spec allows — a `!` before the colon (`feat(api)!: …`) *and* a `BREAKING CHANGE: <what breaks + how to migrate>` footer after a blank line. This is the major-version signal; omitting it makes the break silent.
@@ -155,8 +159,9 @@ in httpOnly cookie to mitigate XSS attack surface.
 ```
 fix(api): fix null pointer on user lookup
 
-The code assumed user always exists, but unauthenticated requests
-would crash. Added null check and unified error response format.
+The code assumed `user` always exists, but unauthenticated requests
+would crash. Added a `null` check and unified the error response
+format.
 ```
 
 ```
@@ -165,6 +170,26 @@ refactor(db): extract query builder into separate module
 The query construction logic was duplicated across 4 repository
 files. Centralizing it reduces maintenance burden and makes it
 easier to add query caching later.
+```
+
+A multi-part *why* reads best as separate paragraphs, with code set off in
+backticks:
+
+```
+fix(pool): release connection on context cancel
+
+When a caller cancelled the request context mid-query, `Pool.Acquire()`
+returned but the deferred `conn.Release()` never ran, because the
+cancellation unwound the stack before the defer was registered.
+
+Over a sustained burst of cancelled requests the pool leaked one
+connection each time and eventually blocked every caller in
+`Acquire()`, since `MaxConns` had all been handed out and none came
+back. The symptom looked like a deadlock but was really exhaustion.
+
+Register the release with `defer` immediately after a successful
+acquire, before any work that can observe cancellation, so the
+connection returns to the pool on every path.
 ```
 
 A self-explanatory change needs no body:
@@ -179,6 +204,6 @@ feat(api)!: replace positional args in createUser with options object
 The positional signature had grown to five arguments and was easy to
 misorder. An options object makes each field explicit at the call site.
 
-BREAKING CHANGE: createUser(name, email, role) is now
-createUser({ name, email, role }).
+BREAKING CHANGE: `createUser(name, email, role)` is now
+`createUser({ name, email, role })`.
 ```
