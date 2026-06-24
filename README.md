@@ -25,6 +25,27 @@ The same workflow as `commit-zh`, but the entire message — subject and body �
 is in English, with the same `-i` / `--interactive` review option.
 Manual-invocation only: run `/commit-en`.
 
+### `create-pr-zh` — Chinese PR descriptions
+
+Opens a Pull Request for your current branch — an English Conventional Commits
+title plus a Markdown body written in Chinese — by reading the branch's commits
+and falling back to the diff when the commits are too thin to explain the
+change. The title becomes the squash-merge subject, so it stays English; the
+body is full GitHub-flavored Markdown with headings, lists, and code blocks, and
+isn't bound by the 72-column wrap a commit body uses. If a PR already exists for
+the branch, running the skill *updates* its title/body instead of opening a
+duplicate, preserving any hand-curated template content. It shows the complete
+title and body before applying — running the skill is your go-ahead, so it won't
+make you click through a prompt — and `-i` / `--interactive` (or "让我确认") asks
+first. It only ever touches the current branch's PR, never merges, and never
+rewrites history. Manual-invocation only: run `/create-pr-zh`.
+
+### `create-pr-en` — English PR descriptions
+
+The same workflow as `create-pr-zh`, but the PR body is in English, with the
+same create-or-update behavior and `-i` / `--interactive` review option.
+Manual-invocation only: run `/create-pr-en`.
+
 ### `ship-pr` — babysit a PR until it merges
 
 Drives an open pull request from *open* to *merged* without supervision: waits
