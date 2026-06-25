@@ -1,53 +1,63 @@
 ---
 name: commit-en
-description: Generate a Git commit message following Conventional Commits, entirely in English (subject and body). Manual-invocation only — run it explicitly with /commit-en (Claude Code) or $commit-en (Codex). Use it for committing staged changes when you want an all-English commit message. Commits directly by default; pass -i / --interactive (or say "let me confirm") to review and choose before it commits.
+description: Generate a Git commit message following Conventional Commits, entirely in English (subject and body), then commit it. Manual-invocation only — run it explicitly with /commit-en (Claude Code) or $commit-en (Codex). Stages everything for you when nothing is staged yet, and when you're on a protected branch (main/master) it carves off a new branch before committing so your work never lands directly on main. Commits directly by default; pass -i / --interactive (or say "let me confirm") to review and choose before it commits.
 disable-model-invocation: true
 argument-hint: "[-i | --interactive]"
-allowed-tools: Bash(git diff *), Bash(git log *), Bash(git status *), Bash(git commit *), AskUserQuestion, request_user_input
+allowed-tools: Bash(git diff *), Bash(git log *), Bash(git status *), Bash(*commit-helper.sh*), AskUserQuestion, request_user_input
 ---
 
 # Commit EN
 
-Write a [Conventional Commits](https://www.conventionalcommits.org/) message — subject and body both in **English** — for the staged changes, then commit it. **Two modes:** by default, show the message and commit it directly — running the skill is your go-ahead; if the user opts into interactive mode (`-i` / `--interactive`, or "let me confirm" / "let me review"), show the message and ask before committing.
+Write a [Conventional Commits](https://www.conventionalcommits.org/) message — subject and body both in **English** — for the change, then commit it through the bundled helper. The helper owns the fiddly git plumbing so you don't chain it by hand: if nothing is staged yet it stages everything (`git add -A`), and if you're sitting on a protected branch (main/master) it creates and switches to a new branch first, so your work never lands directly on main. **Two modes:** by default, show the message and commit it directly — running the skill is your go-ahead; if the user opts into interactive mode (`-i` / `--interactive`, or "let me confirm" / "let me review"), show the message — and the branch it would create — and ask before committing.
+
+> Throughout, `<skill-dir>` is this skill's base directory (the path shown to you when the skill loaded, e.g. `…/commit-en`). Substitute the real absolute path when you run a command.
 
 ## Git Context
 
 **Repository:** !`git rev-parse --is-inside-work-tree 2>/dev/null || echo "NOT_A_GIT_REPO"`
 **Branch:** !`git branch --show-current 2>/dev/null`
-**Status:**
+**Status (before staging):**
 !`git status --short 2>/dev/null`
-
-**Staged files (complete list):**
-!`git diff --staged --stat 2>/dev/null`
 
 **Recent commits (style reference):**
 !`git log --oneline -5 2>/dev/null`
 
-**Staged diff** — first 500 of !`git diff --staged 2>/dev/null | wc -l | tr -d ' '` lines:
-!`git diff --staged 2>/dev/null | head -500`
-
 ## What keeps this safe
 
-Running `/commit-en` is itself the decision to commit, so by default the skill writes the message and commits it — no prompt to rubber-stamp. What keeps that safe is non-negotiable:
+Running `/commit-en` is itself the decision to commit, so the skill stages, branches, and commits without stopping to rubber-stamp each step. Two of those are new powers — staging on your behalf and creating a branch — so it's worth being precise about why they're safe:
 
-- **Never run `git add`.** Commit only what the user already staged; if nothing is staged, stop and say so — don't stage on their behalf.
-- **Never push, and never rewrite existing commits.** The skill makes exactly one new commit from the staged changes and nothing else. A message you don't like is one `git commit --amend` away from fixed.
-- **Always show the complete message before committing — even in the default direct path.** Nothing is hidden behind a summary, and there's always a record to amend from.
+- **Auto-staging is reversible and local.** When nothing is staged, the helper runs `git add -A` — staging every change across the whole working tree (new, modified, and deleted files, from any directory), just as if you ran it yourself. It's broader than a bare `git add .`, which only stages the current directory down. It only ever *adds*; it never discards or overwrites working-tree content, and nothing leaves your machine. A staging you didn't want is one `git reset` away.
+- **Auto-branching protects main instead of risking it.** On a protected branch (main/master) the helper creates a new branch from the current commit *before* committing, so the protected branch is never moved. Carving a branch off the current commit keeps your staged and unstaged changes byte-for-byte intact — there's no stash, no merge, nothing to lose. (This is the one people worry about, but `git switch -c` touches neither the index nor the working tree; it only points a new ref at the commit you're already on.)
+- **Exactly one new commit, nothing destructive.** The skill never pushes, never rewrites or amends existing commits, never force-anything. It makes one new commit — and at most one new branch — from your changes. A message you don't like is one `git commit --amend` away from fixed.
+- **The full message is always shown before the commit lands** — even on the default direct path. Nothing is hidden behind a summary, and there's always a record to amend from.
 
-Want to review or pick before it lands? Add `-i` / `--interactive` (or just say "let me confirm" / "let me review"), and the skill shows the message and asks first instead of committing straight away. `-y` / `--yes` is also accepted and simply affirms the default.
+Want to review or pick before it lands? Add `-i` / `--interactive` (or just say "let me confirm" / "let me review"), and the skill shows the message — and the branch it would create — and asks first. `-y` / `--yes` is also accepted and simply affirms the default.
 
-## 1. Validate the environment
+## 1. Prepare the working tree
 
-Read the injected context and stop early when the repo isn't ready:
+Run the bundled helper to stage (when needed) and read back a compact, token-lean snapshot. It does the staging so you can describe a complete diff even when the user staged nothing:
 
-- Repository shows `NOT_A_GIT_REPO` → say "Not a git repository." and stop.
-- Status is empty → say "No changes in the working tree or staging area." and stop.
-- Staged files is empty (nothing staged) → say "No staged changes. Run `git add` to stage files first." and stop.
+```bash
+bash <skill-dir>/scripts/commit-helper.sh prepare
+```
+
+It prints one `STATE` line, then the staged stat and the staged diff. Read the `STATE` line and stop early when there's nothing to do:
+
+- `STATE repo=no` → say "Not a git repository." and stop.
+- `NO_CHANGES` (working tree clean) → say "No changes in the working tree — nothing to commit." and stop.
+
+Otherwise note these fields — they drive the rest of the run:
+
+- `auto_staged=yes` → the helper just staged everything for you; mention it when you report the result.
+- `protected=yes` together with `unborn=no` → you're on main/master with real history, so the commit step will carve off a **new branch**; you'll name it in step 7.
+- `protected=no` → you're already on a feature branch (or protection is disabled); no new branch will be created.
+
+The `STATE` line reflects the tree *after* staging, so `staged_files` is the real count you're about to commit.
 
 ## 2. Understand the change
 
-- **Staged files / diff stat** maps *what* changed at the file level — it stays complete even when the diff below is truncated.
-- **Staged diff** shows the actual edits and their intent. If the line count above exceeds 500, the diff is truncated: rely on the diff stat for coverage and run `git diff --staged -- <path>` to read any file you still need in full. Pull only what you need to describe the change accurately.
+- The **Staged stat** from the prepare output maps *what* changed at the file level — it stays complete even when the diff below is truncated.
+- The **Staged diff** shows the actual edits and their intent. If it was truncated (the header says "first N of M lines"), rely on the stat for coverage and run `git diff --staged -- <path>` to read any file you still need in full. Pull only what you need to describe the change accurately.
 
 Work out *why* the change was made, not just which lines moved — the body depends on it.
 
@@ -96,7 +106,7 @@ The diff already records *what* changed; the body's lasting value is *why*. Incl
 - Wrap lines at ≤ 72 characters
 - Keep it proportional to the change: a subtle fix earns a short paragraph; a one-line refactor earns one sentence
 
-**Wrap code in backticks.** Set off function and method calls, macros, and expressions — `isolate->SetWasmStreamingCallback()`, `WebAssembly.compileStreaming()`, `CHECK(!impl.IsEmpty())`. It pays off most for tokens carrying punctuation like `()`, `->`, or `!`, which read awkwardly bare and leave the reader guessing where the symbol ends; plain filenames, flags, and ordinary identifiers are a judgment call — backtick them only when it genuinely aids reading, not by reflex. The commit is written through a single-quoted heredoc (step 8), so backticks, `$`, `!`, and backslashes reach the message literally — write them as-is and never escape them.
+**Wrap code in backticks.** Set off function and method calls, macros, and expressions — `isolate->SetWasmStreamingCallback()`, `WebAssembly.compileStreaming()`, `CHECK(!impl.IsEmpty())`. It pays off most for tokens carrying punctuation like `()`, `->`, or `!`, which read awkwardly bare and leave the reader guessing where the symbol ends; plain filenames, flags, and ordinary identifiers are a judgment call — backtick them only when it genuinely aids reading, not by reflex. The commit is written through a single-quoted heredoc (step 9), so backticks, `$`, `!`, and backslashes reach the message literally — write them as-is and never escape them.
 
 **Break a multi-part why into paragraphs.** When the reasoning has distinct beats, separate them with a blank line instead of packing everything into one block. A reliable shape is cause → effect → fix: what changed upstream, what broke as a result, and what this commit does about it. Each paragraph stays wrapped at ≤ 72; the blank lines are what let a reader follow the thread.
 
@@ -106,7 +116,15 @@ The diff already records *what* changed; the body's lasting value is *why*. Incl
 
 **Issue references:** add a `Closes #123` / `Refs #123` footer only when the diff or branch clearly ties to that issue — don't invent one.
 
-## 7. Show the message, then commit (or ask, if requested)
+## 7. Name the branch (only when `protected=yes` and `unborn=no`)
+
+When prepare reported a protected branch, the commit lands on a *new* branch carved from the current commit. Name it after the commit you just wrote, so the branch reads like its contents:
+
+`<type>/<short-kebab-summary>` — e.g. `feat/jwt-token-refresh`, `fix/user-null-pointer`. Fold the scope in when it sharpens the name (`feat/auth-jwt-refresh`). Keep it lowercase, hyphenated, and short (≈40 chars). If that name is already taken the helper appends `-2`, `-3`, … so you never have to check first.
+
+On a feature branch (`protected=no`) no branch is created — pass any slug (it's ignored) or an empty string `""`.
+
+## 8. Show the message, then commit (or ask, if requested)
 
 **Always print the complete message first** — in the current reply, verbatim, in a fenced block. This applies in *both* modes:
 
@@ -116,36 +134,41 @@ The diff already records *what* changed; the body's lasting value is *why*. Incl
 ```
 ````
 
-Then branch on the mode:
+When a branch will be created (`protected=yes` **and** `unborn=no` — an unborn protected branch gets no new branch; the first commit lands on it), add one line under the block naming it, e.g. `Will create and switch to branch feat/jwt-token-refresh off main.` Then branch on the mode:
 
 ### Default — commit directly
-Running the skill is the go-ahead, so don't ask. After the block is printed, go straight to step 8, then report what landed: the subject line and the new short SHA (`git rev-parse --short HEAD`). The default path skips *only* the prompt — every other safeguard holds: validation in step 1 still stops on a no-repo or nothing-staged state instead of committing, and you still never run `git add`.
+Running the skill is the go-ahead, so don't ask. After the block is printed, go straight to step 9. The default path skips *only* the prompt — every other safeguard holds: prepare in step 1 still stops on a no-repo or no-changes state, and every mutation still flows through the audited helper.
 
 ### Interactive mode — `-i` / `--interactive`, or "let me confirm" / "let me review" / "let me choose"
 The user wants to decide, so after the block is visible, ask with the tool your environment provides — `AskUserQuestion` (Claude Code) or `request_user_input` (Codex):
 - `header`: `Commit`
-- `question`: `Please review the commit message above. Should I commit it?`
+- `question`: `Please review the commit message above` (when a branch will be created, append `; it will be committed to a new branch <name>`) `. Should I commit it?`
 - `options`:
-  1. `Commit (Recommended)` — run `git commit` with the message above
+  1. `Commit (Recommended)` — run the commit helper with the message above
   2. `No` — stop without committing
   3. `Edit` — revise, then confirm again
 
 Never call the confirmation tool before the block appears, and never swap the full message for a summary or rationale. Then wait for the explicit choice:
 
-- **Commit** → step 8
+- **Commit** → step 9
 - **No** → stop, don't commit
-- **Edit** → fold in the feedback and return to step 7
+- **Edit** → fold in the feedback and return to step 8
 
-## 8. Commit
+## 9. Commit
 
-Once you reach this step — directly in the default path, or after the user confirms in interactive mode:
+Pipe the message into the helper's `commit` subcommand, passing the branch name from step 7 (or `""` on a feature branch). The single-quoted heredoc keeps backticks, `$`, `!`, and backslashes literal:
 
 ```bash
-git commit -s -m "$(cat <<'EOF'
+bash <skill-dir>/scripts/commit-helper.sh commit "feat/jwt-token-refresh" <<'EOF'
 <commit message>
 EOF
-)"
 ```
+
+The helper creates the branch when on a protected branch, commits with `-s` (sign-off), and prints a `COMMITTED` line such as `COMMITTED branch=feat/jwt-token-refresh created_branch=feat/jwt-token-refresh sha=1a2b3c4`. Report what landed:
+
+- the subject line and the new short SHA (`sha=`)
+- when `created_branch=` is present → created and switched to branch `<name>` off the protected branch
+- when step 1 showed `auto_staged=yes` → staged all changes for you (`git add -A` — the whole working tree, not just the current directory)
 
 ## Examples
 
