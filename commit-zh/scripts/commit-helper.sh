@@ -84,7 +84,7 @@ cmd_prepare() {
   fi
 
   echo "## Staged stat"
-  git diff --staged --stat
+  git diff --staged --stat --stat-count="$DIFF_CAP"
   echo
 
   local total

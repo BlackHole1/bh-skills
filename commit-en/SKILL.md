@@ -26,7 +26,7 @@ Write a [Conventional Commits](https://www.conventionalcommits.org/) message —
 
 Running `/commit-en` is itself the decision to commit, so the skill stages, branches, and commits without stopping to rubber-stamp each step. Two of those are new powers — staging on your behalf and creating a branch — so it's worth being precise about why they're safe:
 
-- **Auto-staging is reversible and local.** When nothing is staged, the helper runs `git add -A` — exactly the `git add .` you'd otherwise type. It only ever *adds*; it never discards or overwrites working-tree content, and nothing leaves your machine. A staging you didn't want is one `git reset` away.
+- **Auto-staging is reversible and local.** When nothing is staged, the helper runs `git add -A` — staging every change across the whole working tree (new, modified, and deleted files, from any directory), just as if you ran it yourself. It's broader than a bare `git add .`, which only stages the current directory down. It only ever *adds*; it never discards or overwrites working-tree content, and nothing leaves your machine. A staging you didn't want is one `git reset` away.
 - **Auto-branching protects main instead of risking it.** On a protected branch (main/master) the helper creates a new branch from the current commit *before* committing, so the protected branch is never moved. Carving a branch off the current commit keeps your staged and unstaged changes byte-for-byte intact — there's no stash, no merge, nothing to lose. (This is the one people worry about, but `git switch -c` touches neither the index nor the working tree; it only points a new ref at the commit you're already on.)
 - **Exactly one new commit, nothing destructive.** The skill never pushes, never rewrites or amends existing commits, never force-anything. It makes one new commit — and at most one new branch — from your changes. A message you don't like is one `git commit --amend` away from fixed.
 - **The full message is always shown before the commit lands** — even on the default direct path. Nothing is hidden behind a summary, and there's always a record to amend from.
@@ -134,7 +134,7 @@ On a feature branch (`protected=no`) no branch is created — pass any slug (it'
 ```
 ````
 
-When a branch will be created (`protected=yes`), add one line under the block naming it, e.g. `Will create and switch to branch feat/jwt-token-refresh off main.` Then branch on the mode:
+When a branch will be created (`protected=yes` **and** `unborn=no` — an unborn protected branch gets no new branch; the first commit lands on it), add one line under the block naming it, e.g. `Will create and switch to branch feat/jwt-token-refresh off main.` Then branch on the mode:
 
 ### Default — commit directly
 Running the skill is the go-ahead, so don't ask. After the block is printed, go straight to step 9. The default path skips *only* the prompt — every other safeguard holds: prepare in step 1 still stops on a no-repo or no-changes state, and every mutation still flows through the audited helper.
@@ -168,7 +168,7 @@ The helper creates the branch when on a protected branch, commits with `-s` (sig
 
 - the subject line and the new short SHA (`sha=`)
 - when `created_branch=` is present → created and switched to branch `<name>` off the protected branch
-- when step 1 showed `auto_staged=yes` → staged all changes for you (equivalent to `git add .`)
+- when step 1 showed `auto_staged=yes` → staged all changes for you (`git add -A` — the whole working tree, not just the current directory)
 
 ## Examples
 
