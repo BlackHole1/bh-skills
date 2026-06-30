@@ -208,7 +208,7 @@ when something changes, then let it wake you. Seed it from the §1 snapshot you
 classified on — pass that file's literal path (a shell `$var` from a prior command
 won't survive into the monitor's separate process):
 
-```
+```text
 Monitor(
   description: "PR <N>: CI + reviewer-bot state changes",
   persistent: true,
