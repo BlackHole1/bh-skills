@@ -98,10 +98,14 @@ Each cycle is **assess → classify → act → wait**. Repeat until merged.
 
 ### 1. Assess
 
-Take one snapshot of the PR's health. The bundled helper does this in one shot:
+Take one snapshot of the PR's health. The bundled helper does this in one shot —
+`tee` it to a file as you read it, so if this assess sends you to Wait you can
+seed the watcher from the *exact* state you classified on (this snapshot, taken
+before you spend time classifying and arming, is what lets the watcher see a
+transition that lands in that gap — see §4):
 
 ```bash
-scripts/pr-state.sh <PR>
+scripts/pr-state.sh <PR> | tee /tmp/ship-pr-<PR>.json
 ```
 
 It prints a compact JSON with: each check's bucket, whether the non-bot checks
@@ -200,13 +204,15 @@ You're waiting for an external event — CI finishing, or the bot posting/finish
 a review. Don't burn cycles polling by hand.
 
 **Standalone (default):** arm a persistent background monitor that emits only
-when something changes, then let it wake you:
+when something changes, then let it wake you. Seed it from the §1 snapshot you
+classified on — pass that file's literal path (a shell `$var` from a prior command
+won't survive into the monitor's separate process):
 
 ```
 Monitor(
   description: "PR <N>: CI + reviewer-bot state changes",
   persistent: true,
-  command: scripts/pr-watch.sh <N>
+  command: PR_WATCH_SEED_FILE=/tmp/ship-pr-<N>.json scripts/pr-watch.sh <N>
 )
 ```
 `pr-watch.sh` polls every ~10s (override with `PR_WATCH_INTERVAL`) and prints a
@@ -217,15 +223,36 @@ recompute, treats a vanishing bot check as `pending`, and requires a state to
 hold for two polls before emitting — so reviewer-bot churn and one-poll flashes
 (including a transient `ready=true`) never wake you. You're notified on the real
 *transition* (CI done, review posted, bot replied/resolved, ready to merge)
-instead of on a timer. Pair it with a long fallback heartbeat (e.g.
-`ScheduleWakeup` ~1500s) in case an event is missed. When the terminal condition
-is reached, `TaskStop` the monitor.
+instead of on a timer.
+
+`PR_WATCH_SEED_FILE` matters more than it looks. Without it the watcher takes a
+*fresh* snapshot as its baseline at startup — but you read the PR back in §1 and
+then spent the seconds since classifying and arming. If the bot finished or CI
+flipped in that window, a fresh self-seed bakes the already-changed state in as
+"normal" and the watcher sits silent until the fallback fires ~25 min later.
+Seeding from the §1 snapshot — taken *before* that window — makes the gap-change
+differ from the baseline, so it's emitted instead of swallowed. The seed must be
+the state you classified on, **not** a fresh read taken at arm time: a read taken
+now lands *after* the gap and seeds straight into the settled state, which is the
+exact bug this guards against.
+
+Belt and suspenders: **right after arming the watcher, assess once more.** The
+seed closes the gap from the watcher's side; this fresh read closes it from yours,
+independently — if either mechanism alone misfires, the other still catches it. If
+the bot finished or CI flipped between your §1 assess and arming, you see it this
+turn and loop straight back to Classify instead of waiting for a heartbeat to
+notice. If that re-read still shows "bot pending / nothing changed", you're
+genuinely waiting: let the monitor plus a long fallback heartbeat (e.g.
+`ScheduleWakeup` ~1500s, in case an event is missed) wake you. When the terminal
+condition is reached, `TaskStop` the monitor.
 
 **Never `sleep N && <poll>`.** Chaining a sleep before a command is blocked by
 the harness. To wait on a *state transition*, use the Monitor above; to wait on a
 command you started, run it in the background. A bare post-push `merge=UNKNOWN`
 or an empty bot bucket is expected recompute churn, not a stuck PR — the watcher
-already absorbs it, so don't hand-roll "real snapshot" confirmation reads.
+already absorbs it, so don't hand-roll *repeated* "real snapshot" confirmation
+reads. (The single post-arm re-assess above is the one deliberate confirmation
+read — it catches an assess→arm gap transition, not churn, so it doesn't loop.)
 
 **Composed under /loop:** if the user wrapped this in `/loop`, don't arm your own
 monitor — do a single assess→classify→act cycle and return. `/loop` re-invokes
@@ -295,7 +322,9 @@ so prefer them over hand-issued `gh api` — you won't have to babysit a flaky r
 - `scripts/pr-merge.sh <PR> [OWNER/REPO] [--subject|--body|--strategy]` —
   gated, DCO-preserving, idempotent, verify-after merge. Refuses unless ready.
 - `scripts/pr-watch.sh <PR> [OWNER/REPO]` — **debounced** change-emitting poll
-  loop for the `Monitor` tool (absorbs merge-recompute / bot-edit churn).
+  loop for the `Monitor` tool (absorbs merge-recompute / bot-edit churn). Set
+  `PR_WATCH_SEED_FILE` to your pre-arm `pr-state.sh` snapshot so a transition in
+  the assess→arm gap is emitted, not swallowed into a fresh self-seed.
 - `scripts/pr-worktree.sh ensure|remove|path <PR> [OWNER/REPO]` — create / refresh
   / tear down an isolated detached worktree (or clone) synced to the PR head, so
   triage and fixes never touch the user's working tree.
