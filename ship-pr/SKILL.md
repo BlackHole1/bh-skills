@@ -10,7 +10,9 @@ description: >-
   land, or ship a PR (by #, URL, or "my PR") until it's in main, often while the
   user steps away. The work: wait for green CI, handle reviewer-bot findings (fix
   and push real issues, reply to false positives), then squash-merge when checks
-  pass and reviews resolve. Not for reviewing a diff, opening a PR, rebasing,
+  pass and reviews resolve — and once it's merged, tidy the local checkout (switch
+  back to the base branch, pull, delete the merged branch) when the working tree is
+  clean. Not for reviewing a diff, opening a PR, rebasing,
   squashing commits, or writing commit messages. Standalone or under /loop; uses
   gh CLI.
 ---
@@ -32,7 +34,9 @@ a finding is real versus noise, and when the PR is truly safe to land.
   diagnosis, and fixes in a detached worktree synced to the PR head (see
   "Isolated worktree" below). This also keeps your *triage* honest: you judge the
   real PR head, not whatever the user has checked out. Fix-and-push targets the
-  PR head branch; never force-push or rewrite history under review.
+  PR head branch; never force-push or rewrite history under review. The *one*
+  sanctioned exception is the post-merge tidy-up in §5 — and only after the merge
+  is confirmed and their tree is clean (see `pr-local-cleanup.sh`).
 - **You may merge automatically** once the terminal condition holds (see below).
   This skill is meant to land PRs unattended. But *never* merge a PR that is
   `CONFLICTING`, has a required-review/required-check gap, or whose remaining
@@ -276,10 +280,28 @@ scripts/pr-merge.sh <N>          # squash by default; --strategy merge|rebase, -
 It refuses (exit 3) if the PR isn't ready, is a no-op if already merged, and
 prints the merge commit. Match the repo's convention (most squash-merge repos
 show single-line `type(scope): subject (#NNN)` history; the default subject is
-`<PR title> (#N)`). Then clean up — `scripts/pr-worktree.sh remove <PR>` if you
-created one, and `TaskStop` any monitor you armed — and report: merge commit,
-what was fixed, what was replied to. Don't schedule further work — the goal is
-done.
+`<PR title> (#N)`).
+
+Once the merge lands, tidy up — two halves:
+
+- **The work area:** `scripts/pr-worktree.sh remove <PR>` if you created one, and
+  `TaskStop` any monitor you armed.
+- **The user's local checkout:** `scripts/pr-local-cleanup.sh <PR>`. All session
+  long you kept your hands off the user's checkout and worked in the worktree;
+  this is the one sanctioned moment to touch it, now that the PR is safely in. The
+  script self-gates every step — it returns the user to the base branch,
+  fast-forwards it, and deletes the now-merged local branch, but **only** when the
+  tree is clean and it can *prove* the branch holds no unpushed work (it confirms
+  the merge, force-deletes a squash-merged branch only after showing the local tip
+  is contained in what GitHub merged, and refuses on a dirty/mid-rebase/detached
+  tree, an unrelated branch, or a fork PR it can't match). On any of those it exits
+  3 and changes nothing — read its one-line reason and pass it along; exit 3 is
+  "left as-is", not a failure. Don't hand-roll `git checkout main && git pull &&
+  git branch -D` yourself — that skips the proof-of-merge check and can drop
+  unpushed commits.
+
+Then report: merge commit, what was fixed, what was replied to, and what the local
+cleanup did (or why it skipped). Don't schedule further work — the goal is done.
 
 ## Why you don't resolve threads
 
@@ -328,6 +350,13 @@ so prefer them over hand-issued `gh api` — you won't have to babysit a flaky r
 - `scripts/pr-worktree.sh ensure|remove|path <PR> [OWNER/REPO]` — create / refresh
   / tear down an isolated detached worktree (or clone) synced to the PR head, so
   triage and fixes never touch the user's working tree.
+- `scripts/pr-local-cleanup.sh <PR> [OWNER/REPO] [--base B] [--dry-run]` —
+  **post-merge only.** Return the user's *local* checkout to a clean base: switch
+  off the merged branch to base, fast-forward it, and delete the merged local
+  branch — each step gated (confirmed `MERGED`, clean tree, no in-progress git op,
+  branch proven fully merged before a force-delete). Exits 3 and does nothing if
+  any gate fails. pr-merge.sh is remote-only by design, so this is what tidies the
+  local side.
 - `scripts/gh-retry.sh` — `gh_retry <cmd…>` wrapper the other scripts source to
   retry transient GitHub API failures; rarely called directly.
 - `references/gh-cookbook.md` — exact `gh` / `gh api` / GraphQL commands for
