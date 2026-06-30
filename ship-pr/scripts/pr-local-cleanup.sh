@@ -18,7 +18,8 @@
 #
 # Usage: pr-local-cleanup.sh <PR> [OWNER/REPO] [--base BRANCH] [--dry-run]
 #   --base BRANCH   override the base branch (default: the PR's baseRefName)
-#   --dry-run       print what it would do, change nothing (no network either)
+#   --dry-run       print what it would do, change nothing (read-only — no fetch,
+#                    no writes; it still reads the PR's state to decide)
 #
 # Exit codes:
 #   0  cleaned up, or already clean (nothing left to do)
@@ -99,7 +100,9 @@ git rev-parse --is-inside-work-tree >/dev/null 2>&1 \
 # `gh repo view` (no -R) reports the repo of the current directory's remote.
 cur="$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || true)"
 [ -z "$cur" ] && skip "this directory has no resolvable GitHub repo — leaving the local side alone."
-if [ -n "$repo" ] && [ "$cur" != "$repo" ]; then
+# GitHub repo slugs are case-insensitive, so compare lower-cased — a caller
+# passing a different casing than gh's canonical owner/repo is still a match.
+if [ -n "$repo" ] && [ "$(printf '%s' "$cur" | tr '[:upper:]' '[:lower:]')" != "$(printf '%s' "$repo" | tr '[:upper:]' '[:lower:]')" ]; then
   skip "current repo ($cur) isn't the PR's repo ($repo) — leaving your checkout untouched."
 fi
 slug="$cur"
@@ -164,7 +167,7 @@ fi
 local_head_exists=0
 git show-ref --verify --quiet "refs/heads/$head" && local_head_exists=1
 
-# --- Dry run: report intent, touch nothing (no network) ---
+# --- Dry run: report intent, touch nothing (read-only — no fetch, no writes) ---
 if [ "$dry" -eq 1 ]; then
   echo "DRY-RUN — $slug #$pr is merged; would:"
   [ "$on_head" -eq 1 ] && echo "  - switch '$curbranch' -> '$base'"
@@ -219,8 +222,14 @@ fi
 
 # 2) Fast-forward the base. --ff-only so we never create a merge commit or pick a
 #    fight with a conflict in the user's checkout; a diverged base is reported.
+#    Pull from the RESOLVED remote, not the branch's configured upstream — a
+#    non-origin checkout or a base we just recreated may have no upstream set.
 #    An already-up-to-date pull adds nothing — keeps a benign rerun a true no-op.
-pull_out="$(git pull --ff-only 2>&1)"; pull_rc=$?
+if [ -n "$remote" ]; then
+  pull_out="$(git pull --ff-only "$remote" "$base" 2>&1)"; pull_rc=$?
+else
+  pull_out="no remote resolved"; pull_rc=1
+fi
 case "$pull_out" in
   *"Already up to date"*|*"Already up-to-date"*) : ;;
   *)
