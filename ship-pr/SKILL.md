@@ -41,6 +41,14 @@ a finding is real versus noise, and when the PR is truly safe to land.
   This skill is meant to land PRs unattended. But *never* merge a PR that is
   `CONFLICTING`, has a required-review/required-check gap, or whose remaining
   failures you don't understand — surface those to the user instead.
+- **Settle the merge authorization before you start waiting, not at merge time.**
+  In auto-accept mode the harness screens the `gh pr merge` call and blocks
+  merging a human-unreviewed PR unless the user has explicitly okayed merging
+  without human review — a harness safety check, distinct from the GitHub
+  required-review gap named above. By merge time the user has walked away and
+  can't okay it, so the PR strands green-but-unmerged, the exact outcome this
+  skill exists to prevent. Get that go-ahead up front, while they're still here
+  (see "Merge authorization" below).
 - **Only the reviewer bot resolves its own threads.** You must not resolve review
   conversations. The bot opened them to verify a concern; resolving on its behalf
   hides whether the concern was actually addressed and breaks the safety loop.
@@ -60,6 +68,61 @@ a finding is real versus noise, and when the PR is truly safe to land.
   ```
   If there is no PR for the current branch and none was named, ask which PR (or
   offer to open one). If the PR is already `MERGED`/`CLOSED`, report and stop.
+
+## Merge authorization — settle it before you wait
+
+The final step is a `gh pr merge`. Under auto-accept mode the harness screens that
+call with a safety classifier, and it will **deny** the merge when the PR has no
+human approval visible — only CI and a reviewer-bot pass — with extra weight when
+you authored the PR in this same session. It isn't wrong to flag that: merging your
+own code with no human eyes on it is a real judgment call. What it looks for is the
+**user** having explicitly authorized merging without human review — a reviewer-bot
+green is not a substitute, and the skill cannot self-authorize on the user's
+behalf. It's a model-based judgment, not a deterministic switch, so treat a
+genuine, explicit user go-ahead as what *should* let the merge through; §5 covers
+the case where it's denied anyway.
+
+This collides head-on with how the skill runs: the user hands you the PR and walks
+away. If you only learn about the block when you try to merge, it's too late — the
+user is gone, the "just confirm and I'll merge" offer has nobody to answer it, and
+the PR sits green-but-unmerged. So don't leave it to the end. Read the human-review
+posture from your first `pr-state.sh` snapshot (§1) and the session itself, and
+settle it before you start the unattended wait — before you arm the monitor, or on
+your first `/loop` cycle:
+
+- **A human already approved** (`reviewDecision: APPROVED`): the safety check is
+  satisfied — go straight into the loop and merge when green. One caveat: an
+  `APPROVED` that came from a *bot* rather than a person doesn't satisfy the
+  human-review posture; if the only approver is a bot, treat it as no human
+  approval and front-load anyway.
+- **The user's invocation already authorized it** ("just land it, no review
+  needed", "merge without waiting for a review"): you have it on record — proceed,
+  don't re-ask.
+- **No human approval** (`reviewDecision` anything other than `APPROVED` — empty,
+  `null`, `REVIEW_REQUIRED`, or `CHANGES_REQUESTED`), the common case and
+  near-certain for a PR you opened this session: the terminal merge will be
+  human-unreviewed, so get an explicit go-ahead *now*, while the user is still
+  here. Say it plainly, and be straight about the trade-off — e.g. "PR #N has no
+  human review, just CI and the reviewer bot. Once those are green I'll
+  squash-merge it without waiting for a human — confirm you want that, or tell me to
+  hold for a human approver (or for you to click merge yourself). Heads up: this
+  go-ahead is what keeps the run hands-off; if the harness still gates the merge
+  once it's ready, the PR waits green-but-unmerged until you're back rather than
+  landing on its own." That's a call the user should make knowingly — and it's also
+  what the classifier looks for later. Once they okay it, **restate the
+  authorization in your own turn, scoped to the PR** — e.g. "Recorded: user
+  authorized squash-merging PR #N without human review" — so the session carries an
+  unambiguous authorization the classifier can key on, not a bare "yes". (Strongest
+  of all: the user can re-invoke with the authorization in the command, e.g.
+  `/ship-pr N merge without human review`, which puts it exactly where the denial
+  reason pointed — the invocation.) Don't start the wait until it's settled.
+- **User says hold for a human:** honor it. Do the CI and reviewer-bot work as
+  usual; when the PR is otherwise green, stop at the merge and tell them it's ready
+  and waiting on a human approver — the same shape as a human "changes requested"
+  (see "Reviewer bots beyond CodeRabbit"). Don't merge around a hold.
+
+Settling this one thing up front is what keeps the rest of the run genuinely
+unattended.
 
 ## Isolated worktree (your view of the PR's code)
 
@@ -261,6 +324,12 @@ read — it catches an assess→arm gap transition, not churn, so it doesn't loo
 **Composed under /loop:** if the user wrapped this in `/loop`, don't arm your own
 monitor — do a single assess→classify→act cycle and return. `/loop` re-invokes
 you on its own cadence. (`/loop` with no interval self-paces and is a good fit.)
+The "Merge authorization" step matters *more* here, not less: `/loop` detaches
+from the user just like the standalone wait, so no later cycle can answer a
+merge-time question either. Settle authorization on the very first cycle (or read
+it from the invocation itself, e.g. `/ship-pr N merge without human review`). If it
+isn't settled and the PR has no human approval, don't keep looping toward a merge
+the harness will deny — surface that the run needs the user's go-ahead and stop.
 
 ### 5. Merge
 
@@ -281,6 +350,30 @@ It refuses (exit 3) if the PR isn't ready, is a no-op if already merged, and
 prints the merge commit. Match the repo's convention (most squash-merge repos
 show single-line `type(scope): subject (#NNN)` history; the default subject is
 `<PR title> (#N)`).
+
+Two very different things can stop this merge — don't conflate them:
+
+- **`pr-merge.sh` exits 3** — the *PR* isn't ready (not `CLEAN`, an unresolved
+  thread, a degraded `threads_fetched:false` read). That's a code/state signal:
+  loop back to Assess or Wait.
+- **The harness denies the `gh pr merge` call** (an auto-accept "merge without
+  review"-type permission denial) — the PR *is* ready; what's missing is the
+  user's authorization to merge it without human review. If you settled that up
+  front ("Merge authorization"), you most likely won't land here. If you do — the
+  run wasn't front-loaded, or the go-ahead wasn't explicit enough for the
+  classifier — treat it as the authorization gap it is, not a dead end. The PR is
+  green and the *only* blocker is the user's go-ahead; but since they may be away,
+  don't just end the turn with a dead pending ask — that's the strand again. Fire a
+  `PushNotification` that the sole blocker is their explicit "merge without human
+  review", leave that request as your last word so their reply resumes you, and
+  re-attempt the gated merge the moment they authorize — so the PR still lands when
+  they're back instead of stranding. (Under `/loop`, a fresh cycle fires on cadence,
+  not on the user's reply: notify *once*, then on later cycles just report "ready —
+  awaiting your go-ahead to merge without human review" rather than re-firing the
+  notification or re-hammering the denied merge every cycle.) Landing it is your
+  job, so don't demote it to a menu that offers "or merge it yourself." (And don't
+  route around the denial with a raw `gh pr merge` or `--admin`; the classifier is
+  a deliberate gate, and the fix is the user's word, not a workaround.)
 
 Once the merge lands, tidy up — two halves:
 
