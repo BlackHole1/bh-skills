@@ -19,7 +19,12 @@
 #     line at all while the snapshot is a degraded read (threads fetch failed)
 #
 # Usage (inside Monitor): pr-watch.sh [PR_NUMBER] [OWNER/REPO]
-# Poll interval defaults to 10s; override with PR_WATCH_INTERVAL (seconds).
+# Poll interval defaults to 5s; override with PR_WATCH_INTERVAL (seconds).
+#
+# --once (or PR_WATCH_ONCE=1) exits after emitting the first real change, turning
+#   the same debounced logic into a foreground "block until something happens"
+#   call. That is the portable wait: an agent with no streaming-monitor tool just
+#   runs this and blocks, instead of hand-rolling a sleep/poll loop.
 # Seed baseline: set PR_WATCH_SEED_FILE to the pr-state.sh JSON the agent already
 #   assessed, so a transition that lands between that assess and this watcher
 #   starting is emitted rather than swallowed into a fresh self-seed (see below).
@@ -27,10 +32,17 @@
 # Requires: gh, jq, and the sibling pr-state.sh.
 set -uo pipefail
 
+once="${PR_WATCH_ONCE:-}"
+rest=()
+for a in "$@"; do
+  case "$a" in --once) once=1 ;; *) rest+=("$a") ;; esac
+done
+set -- ${rest[@]+"${rest[@]}"}
+
 pr="${1:-}"
 repo="${2:-${GH_REPO:-}}"
-interval="${PR_WATCH_INTERVAL:-10}"
-case "$interval" in ''|*[!0-9]*) interval=10 ;; esac   # integer seconds; bad value -> default (no busy-spin)
+interval="${PR_WATCH_INTERVAL:-5}"
+case "$interval" in ''|*[!0-9]*) interval=5 ;; esac   # integer seconds; bad value -> default (no busy-spin)
 if [ -z "$pr" ]; then
   pr="$(gh pr view ${repo:+-R "$repo"} --json number -q .number 2>/dev/null)" || true
 fi
@@ -74,7 +86,7 @@ last_merge="?"    # last non-null/UNKNOWN mergeStateStatus, for carry-forward
 # this watcher; in the seconds between that read and this process starting, the
 # very event it is waiting for can land (CI flips, the bot posts its review). A
 # fresh self-seed would absorb that already-completed transition as the baseline
-# and stay silent until the fallback heartbeat fires ~25 min later. Seeding from
+# and stay silent until the fallback heartbeat fires ~15 min later. Seeding from
 # the agent's own pre-arm snapshot instead means any change since then differs
 # from the baseline and is emitted on the first qualifying poll. A missing,
 # unreadable, or degraded seed file falls back to a self-snapshot — the original
@@ -118,5 +130,6 @@ while true; do
   if [ "$cand_n" -ge 2 ] && [ "$key" != "$emitted" ]; then
     echo "$line"
     emitted="$key"
+    [ -n "$once" ] && exit 0
   fi
 done

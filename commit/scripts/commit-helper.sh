@@ -1,27 +1,34 @@
 #!/usr/bin/env bash
 #
-# commit-helper.sh — one place that owns every mutating git step for the
-# commit-zh / commit-en skills, so the model never has to chain `git add`,
-# branch creation, and `git commit` by hand (each chained command is a
-# round-trip and a chance to get the order wrong).
+# commit-helper.sh owns every mutating git step for the commit skill, so the
+# model never has to chain `git add`, branch creation, and `git commit` by
+# hand (each chained command is a round-trip and a chance to get the order
+# wrong).
 #
 # Two subcommands:
 #
-#   prepare
-#       Make the working tree ready to describe and read back a compact,
-#       token-lean snapshot. If nothing is staged yet, stage everything
-#       (`git add -A`) — running the skill is the user's go-ahead, so an
-#       empty index means "commit what I have", not "give up". Prints a
-#       single STATE line the model can parse, then the staged stat + diff.
+#   prepare [zh|en]
+#       Resolve the body language, make the working tree ready to describe,
+#       and read back a compact, token-lean snapshot.
+#
+#       Language: an explicit `zh` or `en` wins and is recorded in this
+#       repo's .git/config, so later runs in the same repo default to it. With
+#       no argument the recorded value wins, falling back to `en`. The key is
+#       shared with the create-pr skill, so setting it once covers both.
+#
+#       Staging: if nothing is staged yet, stage everything (`git add -A`).
+#       Running the skill is the user's go-ahead, so an empty index means
+#       "commit what I have", not "give up". Prints a single STATE line the
+#       model can parse, then the staged stat and diff.
 #
 #   commit <branch-slug>
-#       Read a commit message from stdin and land exactly one commit. If
-#       HEAD is on a protected branch (main/master by default) or detached,
-#       first carve off a new branch named from <branch-slug> so the
-#       protected branch is never committed to directly. Creating a branch
-#       from the current commit keeps the staged/unstaged split byte-for-byte
-#       intact (verified: `git switch -c` touches neither index nor worktree),
-#       so there is no stash dance and nothing can be lost. Prints a COMMITTED
+#       Read a commit message from stdin and land exactly one commit. If HEAD
+#       is on a protected branch (main/master by default) or detached, first
+#       carve off a new branch named from <branch-slug> so the protected
+#       branch is never committed to directly. Creating a branch from the
+#       current commit keeps the staged/unstaged split byte-for-byte intact
+#       (verified: `git switch -c` touches neither index nor worktree), so
+#       there is no stash dance and nothing can be lost. Prints a COMMITTED
 #       line with the resulting branch and short SHA.
 #
 # Env knobs (all optional):
@@ -29,17 +36,20 @@
 #                               away from (default: "main master"). Set empty
 #                               to allow committing straight onto any branch.
 #   COMMIT_DIFF_MAX_LINES       how many diff lines `prepare` prints (default 500).
+#   SKILLS_LANG_KEY             git config key holding the language record
+#                               (default: skills.lang), shared with create-pr.
 #
 set -euo pipefail
 
 PROTECTED="${COMMIT_PROTECTED_BRANCHES-main master}"
 DIFF_CAP="${COMMIT_DIFF_MAX_LINES:-500}"
+LANG_KEY="${SKILLS_LANG_KEY:-skills.lang}"
 
 die() { printf '%s\n' "$*" >&2; exit 1; }
 
-in_repo()      { git rev-parse --is-inside-work-tree >/dev/null 2>&1; }
+in_repo()        { git rev-parse --is-inside-work-tree >/dev/null 2>&1; }
 current_branch() { git branch --show-current 2>/dev/null || true; }
-has_commits()  { git rev-parse --verify -q HEAD >/dev/null 2>&1; }
+has_commits()    { git rev-parse --verify -q HEAD >/dev/null 2>&1; }
 worktree_dirty() { [ -n "$(git status --porcelain 2>/dev/null)" ]; }
 
 staged_count() {
@@ -49,12 +59,33 @@ staged_count() {
 
 is_protected() {
   local b="$1"
-  # an empty branch name means detached HEAD — always carve off a branch
-  # there, otherwise the commit would be stranded with no ref pointing at it
+  # an empty branch name means detached HEAD, always carve off a branch there,
+  # otherwise the commit would be stranded with no ref pointing at it
   [ -z "$b" ] && return 0
   local p
   for p in $PROTECTED; do [ "$b" = "$p" ] && return 0; done
   return 1
+}
+
+# resolve_lang [zh|en] -> prints the language to write the body in.
+# An explicit value is recorded for this repo; otherwise the record wins,
+# and a repo with no record falls back to `en`.
+resolve_lang() {
+  local want="${1-}" rec=""
+  case "$want" in
+    zh|en)
+      git config --local "$LANG_KEY" "$want" >/dev/null 2>&1 || true
+      printf '%s' "$want"
+      return 0
+      ;;
+    "") ;;
+    *) die "unknown language '$want' (expected zh or en)" ;;
+  esac
+  rec=$(git config --local --get "$LANG_KEY" 2>/dev/null || true)
+  case "$rec" in
+    zh|en) printf '%s' "$rec" ;;
+    *)     printf 'en' ;;
+  esac
 }
 
 cmd_prepare() {
@@ -62,6 +93,9 @@ cmd_prepare() {
     echo "STATE repo=no"
     return 0
   fi
+
+  local msg_lang
+  msg_lang=$(resolve_lang "${1-}")
 
   local auto_staged=no
   if [ "$(staged_count)" -eq 0 ] && worktree_dirty; then
@@ -75,13 +109,17 @@ cmd_prepare() {
   has_commits || unborn=yes
   sc=$(staged_count)
 
-  echo "STATE repo=yes branch=${branch:-<detached>} protected=${protected} unborn=${unborn} auto_staged=${auto_staged} staged_files=${sc}"
+  echo "STATE repo=yes branch=${branch:-<detached>} lang=${msg_lang} protected=${protected} unborn=${unborn} auto_staged=${auto_staged} staged_files=${sc}"
   echo
 
   if [ "$sc" -eq 0 ]; then
-    echo "NO_CHANGES (working tree is clean — nothing to commit)"
+    echo "NO_CHANGES (working tree is clean, nothing to commit)"
     return 0
   fi
+
+  echo "## Recent commits (type and scope style to match)"
+  git log --oneline -8 2>/dev/null || true
+  echo
 
   echo "## Staged stat"
   git diff --staged --stat --stat-count="$DIFF_CAP"
@@ -132,5 +170,5 @@ cmd_commit() {
 case "${1-}" in
   prepare) shift; cmd_prepare "$@" ;;
   commit)  shift; cmd_commit "$@" ;;
-  *)       die "usage: commit-helper.sh {prepare | commit <branch-slug>}" ;;
+  *)       die "usage: commit-helper.sh {prepare [zh|en] | commit <branch-slug>}" ;;
 esac

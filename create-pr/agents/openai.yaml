@@ -1,0 +1,6 @@
+interface:
+  display_name: "Create PR"
+  short_description: "Open or update this branch's PR, English or Chinese body"
+  default_prompt: "Use $create-pr to open (or update) the pull request for the current branch."
+policy:
+  allow_implicit_invocation: false

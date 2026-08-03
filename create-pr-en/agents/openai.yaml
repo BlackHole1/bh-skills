@@ -1,6 +1,0 @@
-interface:
-  display_name: "Create PR EN"
-  short_description: "Open/update a GitHub PR — English Conventional-Commits title, English Markdown body"
-  default_prompt: "Use $create-pr-en to open (or update) the pull request for the current branch."
-policy:
-  allow_implicit_invocation: false

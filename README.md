@@ -1,61 +1,88 @@
 # bh-skills
 
-Personal agent [skills](https://github.com/vercel-labs/skills) for Claude Code, Codex, and other agents.
+Personal agent [skills](https://github.com/vercel-labs/skills) for Claude Code, Codex, Grok, and other agents.
 
 **English** | [简体中文](./README.zh-CN.md)
 
 ## Skills
 
-### `commit-zh` — Chinese commit messages
+### `commit` — Conventional Commits messages, in English or Chinese
 
 Writes a [Conventional Commits](https://www.conventionalcommits.org/) message
-for your **staged** changes: an English subject line plus a Chinese body that
-explains *why* the change was made. It reads the staged diff, infers the type
-and scope from the changes and your recent history, shows you the complete
-message, and then commits it — running the skill is your go-ahead, so it won't
-make you click through a prompt you'd just approve anyway. It never runs
-`git add` and never pushes, and a message you don't like is one
-`git commit --amend` away. Want to review or pick first? Add `-i` /
-`--interactive` (or say "让我确认") and it shows the message and asks before
-committing. Manual-invocation only: run `/commit-zh`.
+for your change and commits it. The subject is always English; the body is
+whichever language you picked, and explains *why* the change was made. It
+stages everything when nothing is staged, and on a protected branch it carves
+off a new branch first so your work never lands on `main`. It shows you the
+complete message and then commits: running the skill is your go-ahead, so it
+won't make you click through a prompt you'd just approve anyway. It never
+pushes, never amends, and never rewrites history. Add `-i` / `--interactive`
+(or say "让我确认") to review and choose before it commits.
 
-### `commit-en` — English commit messages
+```bash
+/commit          # this repo's remembered language, English by default
+/commit --zh     # Chinese body, and remembered for this repo from now on
+/commit --en     # back to English, likewise remembered
+```
 
-The same workflow as `commit-zh`, but the entire message — subject and body —
-is in English, with the same `-i` / `--interactive` review option.
-Manual-invocation only: run `/commit-en`.
+### `create-pr` — PR descriptions, in English or Chinese
 
-### `create-pr-zh` — Chinese PR descriptions
+Opens a Pull Request for your current branch, with an English Conventional
+Commits title and a Markdown body in your chosen language. It reads the
+branch's commits and falls back to the diff when the commits are too thin to
+explain the change. The body is written to be read in under thirty seconds:
+short paragraphs, and GitHub permalinks that expand inline so a reviewer sees
+the actual code instead of a paraphrase of it. If the branch has uncommitted
+work or no commits at all, it runs the `commit` skill first. If a PR already
+exists, it *updates* the title and body instead of opening a duplicate,
+preserving any hand-curated template content. It only ever touches the current
+branch's PR, never merges, and never rewrites history. Add `-i` /
+`--interactive` to review first, or `--draft` to open a draft.
+Manual-invocation only: run `/create-pr`.
 
-Opens a Pull Request for your current branch — an English Conventional Commits
-title plus a Markdown body written in Chinese — by reading the branch's commits
-and falling back to the diff when the commits are too thin to explain the
-change. The title becomes the squash-merge subject, so it stays English; the
-body is full GitHub-flavored Markdown with headings, lists, and code blocks, and
-isn't bound by the 72-column wrap a commit body uses. If a PR already exists for
-the branch, running the skill *updates* its title/body instead of opening a
-duplicate, preserving any hand-curated template content. It shows the complete
-title and body before applying — running the skill is your go-ahead, so it won't
-make you click through a prompt — and `-i` / `--interactive` (or "让我确认") asks
-first. It only ever touches the current branch's PR, never merges, and never
-rewrites history. Manual-invocation only: run `/create-pr-zh`.
+```bash
+/create-pr              # this repo's remembered language, English by default
+/create-pr --zh         # Chinese body, and remembered for this repo from now on
+/create-pr --draft main # draft PR against an explicit base branch
+```
 
-### `create-pr-en` — English PR descriptions
-
-The same workflow as `create-pr-zh`, but the PR body is in English, with the
-same create-or-update behavior and `-i` / `--interactive` review option.
-Manual-invocation only: run `/create-pr-en`.
+Both skills share one language record, stored as `skills.lang` in the repo's
+`.git/config`. It is per-repo and never committed, so setting it once in a repo
+covers every later `/commit` and `/create-pr` there.
 
 ### `ship-pr` — babysit a PR until it merges
 
 Drives an open pull request from *open* to *merged* without supervision: waits
 for CI to go green, works through reviewer-bot findings (e.g. CodeRabbit) —
 fixing the real ones in an isolated worktree and pushing, replying to the false
-positives — and squash-merges once every check passes and all review threads
-resolve. It inspects and edits PR code only in a throwaway worktree, never your
+positives — until every check passes and all review threads resolve. Whether it
+then merges is decided by how you invoked it, never by a mid-run question: pass
+`-y` (or say so in your own words, "land it, no review needed") and it
+squash-merges the moment the PR is ready; otherwise it stops at "ready to
+merge", notifies you, and leaves the merge click to you. Running the skill is
+your go-ahead for its writes — pushing fix commits to the PR head and, with
+`-y`, the merge — so those are pre-approved and won't stall on permission
+prompts. Commits are written through the `commit` skill, and if the fixes grow
+to change what the PR means it refreshes the title and body through `create-pr`.
+It inspects and edits PR code only in a throwaway worktree, never your
 checkout, and surfaces anything risky (merge conflicts, unexplained failures,
 required gates) instead of guessing. Auto-triggers when you ask to land / merge
 / ship / babysit a PR once CI is green, or run it explicitly with `/ship-pr`.
+
+```bash
+/ship-pr           # babysit the current branch's PR; stops at "ready to merge"
+/ship-pr 42 -y     # babysit PR #42 and squash-merge it the moment it's ready
+```
+
+## Agent support
+
+Written to run unchanged on Claude Code, Codex, and Grok. Where one harness has
+an affordance another lacks, the skill names the alternative instead of assuming
+it: the interactive prompt uses whichever structured-question tool is available
+and falls back to asking in plain text, and `ship-pr` waits on a streaming
+monitor where one exists (Claude Code, Grok) or on a blocking
+`pr-watch.sh --once` where none does (Codex). All the git and GitHub work lives
+in the bundled shell scripts, which need only bash 3.2 with `git`, `gh`, and
+`jq` — nothing agent-specific.
 
 ## Installation
 
@@ -84,3 +111,6 @@ npx skills list      # list installed skills
 npx skills update    # update to the latest version
 npx skills remove    # remove from your agents
 ```
+
+Grok is not one of the CLI's `-a` targets, but it scans `~/.claude/skills/` and
+`.agents/skills/` by default, so a Claude Code install covers Grok as well.

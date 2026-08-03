@@ -1,0 +1,6 @@
+interface:
+  display_name: "Ship PR"
+  short_description: "Babysit a PR until CI is green and it can land"
+  default_prompt: "Use $ship-pr to watch my pull request until CI passes and every review thread is resolved."
+policy:
+  allow_implicit_invocation: true
