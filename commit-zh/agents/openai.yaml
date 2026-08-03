@@ -1,6 +1,0 @@
-interface:
-  display_name: "Commit ZH"
-  short_description: "Conventional Commits message — English subject, Chinese body"
-  default_prompt: "Use $commit-zh to write a commit message for the staged changes."
-policy:
-  allow_implicit_invocation: false
