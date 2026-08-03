@@ -31,6 +31,9 @@
 set -euo pipefail
 
 DIFF_CAP="${PR_DIFF_MAX_LINES:-600}"
+case "$DIFF_CAP" in
+  *[!0-9]*|'') DIFF_CAP=600 ;;
+esac
 LANG_KEY="${SKILLS_LANG_KEY:-skills.lang}"
 
 die() { printf '%s\n' "$*" >&2; exit 1; }
@@ -42,7 +45,8 @@ resolve_lang() {
   local want="${1-}" rec=""
   case "$want" in
     zh|en)
-      git config --local "$LANG_KEY" "$want" >/dev/null 2>&1 || true
+      git config --local "$LANG_KEY" "$want" >/dev/null 2>&1 \
+        || die "failed to persist language preference ($LANG_KEY=$want)"
       printf '%s' "$want"
       return 0
       ;;

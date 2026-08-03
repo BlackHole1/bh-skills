@@ -29,7 +29,7 @@ The helper prints one `STATE` line, then recent commits, the staged stat, and th
 
 - `lang=` is `en` or `zh`, already resolved from the argument, this repo's record, or the `en` default. The record lives in `.git/config` and is shared with the create-pr skill.
 - `auto_staged=yes` means the helper staged everything for you with `git add -A`. Say so when you report the result.
-- `protected=yes` together with `unborn=no` means the commit lands on a new branch that you name in step 5.
+- `protected=yes` means the commit lands on a new branch that you name in step 5, including when `unborn=yes` (fresh repo, no commits yet).
 
 ## 2. Load the language
 
@@ -65,7 +65,7 @@ Governs the body in both languages.
 
 ## 5. Name the branch
 
-Only when `protected=yes` and `unborn=no`. The commit lands on a new branch carved from the current commit, so name it after the commit you just wrote: `<type>/<short-kebab-summary>`, lowercase, around 40 characters, for example `feat/jwt-token-refresh` or `fix/user-null-pointer`. The helper appends `-2`, `-3` and so on if the name is taken, so there is nothing to check first. On a feature branch pass `""`.
+Only when `protected=yes` (including `unborn=yes`). The commit lands on a new branch carved from the current tip, so name it after the commit you just wrote: `<type>/<short-kebab-summary>`, lowercase, around 40 characters, for example `feat/jwt-token-refresh` or `fix/user-null-pointer`. The helper appends `-2`, `-3` and so on if the name is taken, so there is nothing to check first. On a feature branch pass `""`.
 
 ## 6. Show it, then commit
 

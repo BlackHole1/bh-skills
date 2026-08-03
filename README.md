@@ -49,24 +49,23 @@ Both skills share one language record, stored as `skills.lang` in the repo's
 `.git/config`. It is per-repo and never committed, so setting it once in a repo
 covers every later `/commit` and `/create-pr` there.
 
-### `ship-pr` — babysit a PR until it merges
+### `ship-pr` — babysit a PR until it is ready (merge only with `-y`)
 
-Drives an open pull request from *open* to *merged* without supervision: waits
-for CI to go green, works through reviewer-bot findings (e.g. CodeRabbit) —
-fixing the real ones in an isolated worktree and pushing, replying to the false
-positives — until every check passes and all review threads resolve. Whether it
-then merges is decided by how you invoked it, never by a mid-run question: pass
-`-y` (or say so in your own words, "land it, no review needed") and it
-squash-merges the moment the PR is ready; otherwise it stops at "ready to
-merge", notifies you, and leaves the merge click to you. Running the skill is
-your go-ahead for its writes — pushing fix commits to the PR head and, with
-`-y`, the merge — so those are pre-approved and won't stall on permission
-prompts. Commits are written through the `commit` skill, and if the fixes grow
-to change what the PR means it refreshes the title and body through `create-pr`.
-It inspects and edits PR code only in a throwaway worktree, never your
-checkout, and surfaces anything risky (merge conflicts, unexplained failures,
-required gates) instead of guessing. Auto-triggers when you ask to land / merge
-/ ship / babysit a PR once CI is green, or run it explicitly with `/ship-pr`.
+Watches an open pull request until CI is green and every review thread is
+resolved: works through reviewer-bot findings (e.g. CodeRabbit) — fixing the
+real ones in an isolated worktree and pushing, replying to the false positives.
+By default it stops at "ready to merge", notifies you, and leaves the merge
+click to you. Pass `-y` (or say so in your own words, "land it, no review
+needed") and it squash-merges the moment that gate holds — never by a mid-run
+question. Running the skill is your go-ahead for its writes — pushing fix
+commits to the PR head and, with `-y`, the merge — so those are pre-approved
+and won't stall on permission prompts. Commits are written through the
+`commit` skill, and if the fixes grow to change what the PR means it refreshes
+the title and body through `create-pr`. It inspects and edits PR code only in a
+throwaway worktree, never your checkout, and surfaces anything risky (merge
+conflicts, unexplained failures, required gates) instead of guessing. On Claude
+Code it can auto-trigger when you ask to land / merge / ship / babysit a PR;
+Codex requires an explicit `/ship-pr` (or `$ship-pr`).
 
 ```bash
 /ship-pr           # babysit the current branch's PR; stops at "ready to merge"

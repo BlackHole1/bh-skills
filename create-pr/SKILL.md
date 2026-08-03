@@ -131,29 +131,25 @@ In update mode, add one line on how this differs from the live title and body, s
 - Otherwise a non-zero `ahead` calls for `git push origin HEAD`, a plain push of the current branch and never `--force`.
 - Otherwise push nothing.
 
-Then write the body through a single-quoted heredoc so backticks, `#`, `$`, `!`, and `[]()` reach GitHub literally. Never escape anything inside it.
+Write the complete body with your file-writing tool to a temp path (for example `/tmp/create-pr-body.md`), then pass that path with `--body-file`. Do not embed the body in a shell heredoc or `$(...)` — a PR template or generated body can contain `EOF` and close a heredoc early, after which later body text is parsed as shell. The file path keeps backticks, `#`, `$`, `!`, and `[]()` literal without escaping.
 
 ### 9a. Create
 
 Add `--draft` when requested, and `--base <base>` only when overriding the repo default.
 
 ```bash
-gh pr create --title "type(scope): description" --body "$(cat <<'EOF'
-<complete PR body>
-EOF
-)"
+# body already written to /tmp/create-pr-body.md
+gh pr create --title "type(scope): description" --body-file /tmp/create-pr-body.md
 ```
 
 ### 9b. Update
 
-`gh pr edit` replaces the body wholesale, and the body from `prepare` may already be stale if a human or a bot edited the PR since. Re-fetch the live body and merge into that.
+`gh pr edit` replaces the body wholesale, and the body from `prepare` may already be stale if a human or a bot edited the PR since. Re-fetch the live body and merge into that, then write the merged body to the temp file.
 
 ```bash
 gh pr view <number> --json body -q .body
-gh pr edit <number> --body "$(cat <<'EOF'
-<complete PR body>
-EOF
-)"
+# write merged body to /tmp/create-pr-body.md, then:
+gh pr edit <number> --body-file /tmp/create-pr-body.md
 # add --title only when step 6 decided the title genuinely changed
 ```
 

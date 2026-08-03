@@ -10,7 +10,7 @@ description: >-
   otherwise stops at "ready to merge". Not for reviewing a diff, opening a PR,
   rebasing, or writing commit messages. Standalone or under /loop; uses gh CLI.
 argument-hint: "[PR] [-y]"
-allowed-tools: Bash(*pr-state.sh*), Bash(*pr-comments.sh*), Bash(*pr-reply.sh*), Bash(*pr-merge.sh*), Bash(*pr-watch.sh*), Bash(*pr-worktree.sh*), Bash(*pr-local-cleanup.sh*), Bash(*commit-helper.sh*), Bash(git -C * push origin HEAD:*), Bash(git -C * push https://github.com/* HEAD:*), Bash(git -C * status*), Bash(git -C * diff*), Bash(git -C * log*), Bash(git -C * show*), Bash(git -C * switch*), Bash(git -C * branch -D *), Bash(gh pr view *), Bash(gh pr checks *), Bash(gh pr diff *), Bash(gh repo view *), Bash(gh run view *), Bash(gh run rerun *), Bash(gh api graphql *), Bash(gh api repos/*), Read, Edit, Write, Grep, Glob, Skill, Monitor, TaskStop, ScheduleWakeup, PushNotification
+allowed-tools: Bash(*pr-state.sh*), Bash(*pr-comments.sh*), Bash(*pr-reply.sh*), Bash(*pr-merge.sh*), Bash(*pr-watch.sh*), Bash(*pr-worktree.sh*), Bash(*pr-local-cleanup.sh*), Bash(*commit-helper.sh*), Bash(git -C * push origin HEAD:*), Bash(git -C * push https://github.com/* HEAD:*), Bash(git -C * status*), Bash(git -C * diff*), Bash(git -C * log*), Bash(git -C * show*), Bash(git -C * switch*), Bash(git -C * branch -D *), Bash(gh pr view *), Bash(gh pr checks *), Bash(gh pr diff *), Bash(gh pr edit *), Bash(gh repo view *), Bash(gh run view *), Bash(gh run rerun *), Bash(gh api graphql *), Bash(gh api repos/*), Read, Edit, Write, Grep, Glob, Skill, Monitor, TaskStop, ScheduleWakeup, PushNotification
 ---
 
 # ship-pr
@@ -74,12 +74,30 @@ One override in both modes: a human reviewer's `CHANGES_REQUESTED` outranks
 
 ## Inputs
 
-Target PR: an explicit number if given, otherwise the current branch's PR:
+Resolve the target **once** at the start of the run and pin the result for every
+later command. Accept a bare number, an `owner/repo#N` token, or a full PR URL;
+never pass a raw URL into paths like `/tmp/ship-pr-<PR>.json`.
 
 ```bash
-gh pr view --json number,url,headRefName,baseRefName,state -q '.number'
-gh repo view --json nameWithOwner -q .nameWithOwner
+# 1) Number + repository (from URL, owner/repo#N, bare N, or current branch)
+#    PR URL  -> number + owner/repo from the path
+#    bare N  -> number N, repo from `gh repo view` of the checkout
+#    omitted -> `gh pr view --json number,...` for the current branch
+gh pr view <N> --repo <owner/repo> --json number,url,headRefName,baseRefName,state,headRepository \
+  -q '{number,url,headRefName,baseRefName,state,headRepo:(.headRepository.nameWithOwner // .headRepository.owner.login + "/" + .headRepository.name)}'
+# fallback when headRepository is absent on older gh:
+#   gh pr view <N> -R <owner/repo> --json number,url,headRefName,baseRefName,state
+#   plus gh api repos/<owner>/<repo>/pulls/<N> -q .head.repo.full_name for forks
 ```
+
+Pin and reuse these fields for the whole run:
+
+| Field | Use |
+|---|---|
+| `PR` | integer only — every helper arg and `/tmp/ship-pr-<PR>.json` |
+| `REPO` | `owner/repo` of the PR's base repository — pass as the helpers' optional second arg / `-R` |
+| `headRefName` | push destination branch name |
+| `headRepo` | push URL for fork PRs (`https://github.com/<headRepo>.git`); same as `REPO` for same-repo heads |
 
 No PR resolvable → ask which (or offer create-pr). Already `MERGED`/`CLOSED` →
 report and stop.
@@ -90,18 +108,21 @@ Create it the first time you need to read or change PR code — lazy, a clean
 wait-then-merge PR never needs one:
 
 ```bash
-wt=$(bash <skill-dir>/scripts/pr-worktree.sh ensure <PR> [OWNER/REPO])   # prints the path
+wt=$(bash <skill-dir>/scripts/pr-worktree.sh ensure <PR> <REPO>)   # prints the path
 ```
+
+Use the pinned `PR` (integer) and `REPO` from Inputs — never a URL — for the
+worktree key, seed file `/tmp/ship-pr-<PR>.json`, and every helper.
 
 - Re-run `ensure` at the start of every round: it hard-resets to the *current*
   PR head, so you always judge and edit the real code, never a stale copy.
 - It parks detached on the head commit, so it can never collide with the user's
   checkout of the same branch.
 - Push fixes with `git -C "$wt" push origin HEAD:<headRefName>`. Fork PR: push
-  to the fork's URL instead (`git -C "$wt" push
-  https://github.com/<headOwner>/<headRepo>.git HEAD:<headRefName>`); if you
-  can't push to the fork, surface it rather than merging around the finding.
-- After the merge: `bash <skill-dir>/scripts/pr-worktree.sh remove <PR>`.
+  to the pinned head repository instead (`git -C "$wt" push
+  https://github.com/<headRepo>.git HEAD:<headRefName>`); if you can't push to
+  the fork, surface it rather than merging around the finding.
+- After the merge: `bash <skill-dir>/scripts/pr-worktree.sh remove <PR> <REPO>`.
 
 ## The loop
 
@@ -143,10 +164,13 @@ A *passing* bot check with zero actionable comments is the clean case;
 
 Pull the failing job's log (`gh run view <id> --log-failed`) and decide:
 
-- **Caused by the diff** (test/lint/type/build broke) → fix it in the worktree,
-  run the project's own checks there (discover them from `CLAUDE.md`,
-  `package.json`/`Makefile`/CI config), then commit and push (see "Committing
-  and PR hygiene"). The push re-triggers CI and re-review → back to Assess.
+- **Caused by the diff** (test/lint/type/build broke) → fix it in the worktree.
+  Prefer checks the allowlist already covers (read project docs, re-read the
+  diff, lean on the next CI run after push). Do not invent unrestricted shell
+  access to run arbitrary `npm test` / `make` / CI scripts — if a local check
+  is essential and outside the allowlist, surface that gap instead of
+  widening permissions. Then commit and push (see "Committing and PR
+  hygiene"). The push re-triggers CI and re-review → back to Assess.
 - **Flaky or infra** (network, runner, unrelated) → `gh run rerun <run-id>
   --failed` once; if it fails again, surface.
 - **Not yours to own** (secrets, required approvals) → surface.

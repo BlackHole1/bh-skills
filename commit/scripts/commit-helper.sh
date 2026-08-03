@@ -25,11 +25,14 @@
 #       Read a commit message from stdin and land exactly one commit. If HEAD
 #       is on a protected branch (main/master by default) or detached, first
 #       carve off a new branch named from <branch-slug> so the protected
-#       branch is never committed to directly. Creating a branch from the
-#       current commit keeps the staged/unstaged split byte-for-byte intact
-#       (verified: `git switch -c` touches neither index nor worktree), so
-#       there is no stash dance and nothing can be lost. Prints a COMMITTED
-#       line with the resulting branch and short SHA.
+#       branch is never committed to directly — including an unborn protected
+#       branch (fresh repo, no commits yet): `git switch -c` renames the unborn
+#       tip so the first commit lands on the feature branch and main/master
+#       stays empty. Creating a branch from the current commit keeps the
+#       staged/unstaged split byte-for-byte intact (verified: `git switch -c`
+#       touches neither index nor worktree), so there is no stash dance and
+#       nothing can be lost. Prints a COMMITTED line with the resulting branch
+#       and short SHA.
 #
 # Env knobs (all optional):
 #   COMMIT_PROTECTED_BRANCHES   space-separated branch names to auto-branch
@@ -43,6 +46,7 @@ set -euo pipefail
 
 PROTECTED="${COMMIT_PROTECTED_BRANCHES-main master}"
 DIFF_CAP="${COMMIT_DIFF_MAX_LINES:-500}"
+case "$DIFF_CAP" in ''|*[!0-9]*) DIFF_CAP=500 ;; esac
 LANG_KEY="${SKILLS_LANG_KEY:-skills.lang}"
 
 die() { printf '%s\n' "$*" >&2; exit 1; }
@@ -74,7 +78,8 @@ resolve_lang() {
   local want="${1-}" rec=""
   case "$want" in
     zh|en)
-      git config --local "$LANG_KEY" "$want" >/dev/null 2>&1 || true
+      git config --local "$LANG_KEY" "$want" >/dev/null 2>&1 \
+        || die "failed to persist language preference"
       printf '%s' "$want"
       return 0
       ;;
@@ -140,10 +145,10 @@ cmd_commit() {
   local branch created=""
   branch=$(current_branch)
 
-  # Auto-branch only when there is real history to protect. On an unborn
-  # branch (fresh repo, no commits) there is nothing to push off of, so let
-  # the first commit land where it is rather than orphaning the base name.
-  if is_protected "$branch" && has_commits; then
+  # Always carve off a feature branch on protected/detached HEAD, including an
+  # unborn main/master: switch -c renames the unborn tip so the first commit
+  # never lands on the protected name.
+  if is_protected "$branch"; then
     [ -n "$slug" ] || die "On protected branch '${branch:-<detached>}' but no branch slug was given."
     local name="$slug" n=2
     while git show-ref --verify -q "refs/heads/$name"; do

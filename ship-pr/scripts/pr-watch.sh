@@ -42,7 +42,7 @@ set -- ${rest[@]+"${rest[@]}"}
 pr="${1:-}"
 repo="${2:-${GH_REPO:-}}"
 interval="${PR_WATCH_INTERVAL:-5}"
-case "$interval" in ''|*[!0-9]*) interval=5 ;; esac   # integer seconds; bad value -> default (no busy-spin)
+case "$interval" in ''|0|*[!0-9]*) interval=5 ;; esac   # integer >0 seconds; 0/bad -> default (no busy-spin)
 if [ -z "$pr" ]; then
   pr="$(gh pr view ${repo:+-R "$repo"} --json number -q .number 2>/dev/null)" || true
 fi
