@@ -1,7 +1,6 @@
 ---
 name: create-pr
-description: Open or update the GitHub Pull Request for the current branch, with an English Conventional-Commits title and a short, reviewable body. Run it explicitly with /create-pr (Claude Code, Grok) or $create-pr (Codex). Pass --zh for a Chinese body or --en for English, and the choice is remembered per repo.
-disable-model-invocation: true
+description: Open or update the GitHub Pull Request for the current branch, with an English Conventional-Commits title and a short, reviewable body. Use when the user asks to open, create, or update a PR, wants a PR description written, or says 开 PR / 提 PR / 发 PR. Pass --zh for a Chinese body or --en for English, and the choice is remembered per repo.
 argument-hint: "[--zh | --en] [-i | --interactive] [--draft] [base-branch]"
 allowed-tools: Bash(git diff *), Bash(git log *), Bash(git status *), Bash(git rev-parse *), Bash(git push -u origin HEAD), Bash(git push origin HEAD), Bash(*pr-helper.sh*), Bash(gh pr view *), Bash(gh pr create *), Bash(gh pr edit *), Bash(gh pr diff *), Bash(gh repo view *), Read, Skill, AskUserQuestion
 ---
@@ -55,11 +54,11 @@ Read `<skill-dir>/references/<lang>.md`, using the resolved `lang`. It holds the
 
 ## 5. Understand the change
 
-Commits are the primary source. They already carry the author's intent and a `type(scope)` you can lift the title from, so read every subject and body and use the diffstat to confirm the surface area.
+Commits are the primary source: they carry the author's intent and a `type(scope)` the title can lift, so read every subject and body, and use the diffstat to confirm the surface area.
 
-When the commits are thin, meaning terse subjects like `wip`, empty bodies, or one squashed commit hiding a large diff, fall back to the code: the diffstat maps the surface area and the branch diff shows the edits. When the diff was capped, read what you still need with `git diff <merge_base>..HEAD -- <path>`, or `gh pr diff <number>` in update mode.
+When the commits are thin, meaning terse subjects like `wip`, empty bodies, or one squashed commit hiding a large diff, fall back to the code. When the diff was capped, read the rest with `git diff <merge_base>..HEAD -- <path>`, or `gh pr diff <number>` in update mode.
 
-Describe the net change the branch delivers, not a replay of each commit in order. Work out what a reviewer needs in order to approve it.
+Land on the net change the branch delivers and on what a reviewer needs in order to approve it, not on a replay of each commit in order.
 
 ## 6. Write the title
 
@@ -71,25 +70,34 @@ On a single-commit branch, reuse that commit's subject refined rather than inven
 
 ## 7. Write the body
 
-**A reviewer should get the point in under thirty seconds.** That budget is the whole design constraint. Most PRs are one short paragraph plus the lines of code that carry the change. Three sentences is a full paragraph, so start a new one rather than letting it grow, and cut any sentence that only restates what the diff already shows.
+**A reviewer gets the point in under thirty seconds**, and prose alone usually carries it. Most bodies are one paragraph of two or three sentences. A second paragraph is a second idea, never the overflow of the first, and any sentence that only restates the diff is cut.
 
-**Lead with the point, in prose.** A reliable shape is cause then fix: what was wrong, and what this branch does about it. Open with a sentence that stands on its own, because some repos fold the body into the squash commit message.
+**Lead with the point**, cause then fix: what was wrong, and what this branch does about it. The opening sentence stands on its own, because some repos fold the body into the squash commit message.
 
-**Show the code, not only prose.** A GitHub permalink alone on its line renders inline as an expanded, syntax-highlighted snippet, so the reviewer reads the change instead of your paraphrase of it. Build it from `repo_slug` and `head_sha` on the `STATE` line:
-
-```text
-https://github.com/<repo_slug>/blob/<head_sha>/<path>#L42-L48
-```
-
-It expands only when the URL sits alone on its own line with a blank line above and below, and only after the branch is pushed, which step 9 does first. Point it at the two or three lines that carry the change, never a whole file. When the point is a before and after contrast, or the code does not live in the repo, a fenced block with a language tag reads better.
-
-**Write it the way a person would, not as a filled-in form.** A fixed `## Summary` / `## Why` / `## What changed` / `## Test plan` scaffold is the clearest tell of a machine-written description, and a body that fits on one screen needs no headings at all. Weave the why into the sentences. Leave testing out unless there is something genuinely worth saying, such as a regression test written for this exact bug, and then say it inline in one sentence.
+**Write it the way a person would, not as a filled-in form.** A fixed `## Summary` / `## Why` / `## What changed` / `## Test plan` scaffold is the clearest tell of a machine-written description, and a body that fits on one screen needs no headings at all. Weave the why into the sentences. Testing earns a mention only when there is something to say, such as a regression test written for this exact bug, and then inline, in one sentence.
 
 **Follow the repo's own conventions.** When `prepare` printed a PR template, use it as the skeleton, checkboxes and required links included, since `gh pr create --body` does not apply it for you.
 
-**Structure earns its place only on a genuinely large PR**, meaning many commits, cross-cutting, or risky. Then a one-line overview, a grouped list of the notable changes, a screenshot for a visible UI change, and a short migration note for a breaking change are all worth it. Even there, keep it to what a reader needs.
+**Structure earns its place only on a genuinely large PR**, meaning many commits, cross-cutting, or risky. Then a one-line overview, a grouped list of the notable changes, a screenshot for a visible UI change, and a short migration note for a breaking change are all worth it.
 
 **Issue footers** go last, and only when the branch or commits clearly tie to an issue. `Closes #123`, `Fixes #123`, and `Resolves #123` auto-close on merge, `Refs #123` links without closing, and `owner/repo#123` crosses repos. Auto-close fires only when the base is the repository's default branch, so against any other base use `Refs #123` and note that the issue closes once the base lands.
+
+### Citing code
+
+A permalink is a citation: it earns its place only where prose would leave the reviewer hunting. Most PRs cite nothing, and two is the ceiling.
+
+Two things are worth citing, and each points at a different commit:
+
+- **A cause the reviewer would not spot on their own.** Cite the code as it stood at `merge_base`, so the block on screen is the broken one, and let the prose say why it is broken. A `head_sha` link here shows the already-fixed code and proves nothing.
+- **An implementation intricate enough to skim past.** Cite it at `head_sha` and say what to look at.
+
+Both shas are on the `STATE` line:
+
+```text
+https://github.com/<repo_slug>/blob/<sha>/<path>#L42-L48
+```
+
+It expands into a syntax-highlighted snippet only when the URL sits alone on its own line with a blank line above and below, and only after step 9 pushes. Point it at the few lines that matter, never a whole file. For a before and after contrast, or code that does not live in this repo, a fenced block with a language tag reads better.
 
 ## House style
 

@@ -18,9 +18,10 @@
 #       repo's PR template.
 #
 # STATE fields worth knowing:
-#   repo_slug / head_sha   build GitHub permalinks from these:
-#                          https://github.com/<repo_slug>/blob/<head_sha>/<path>#L1-L9
-#   merge_base             the base commit; use it in follow-up git commands
+#   repo_slug              https://github.com/<repo_slug>/blob/<sha>/<path>#L1-L9
+#   head_sha               the branch tip; cite it to point at this PR's own code
+#   merge_base             the base commit; cite it to point at code as it stood
+#                          before the branch, and use it in follow-up git commands
 #   dirty / commits        whether there is work to commit before the PR
 #
 # Env knobs (all optional):

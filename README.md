@@ -30,14 +30,16 @@ Opens a Pull Request for your current branch, with an English Conventional
 Commits title and a Markdown body in your chosen language. It reads the
 branch's commits and falls back to the diff when the commits are too thin to
 explain the change. The body is written to be read in under thirty seconds:
-short paragraphs, and GitHub permalinks that expand inline so a reviewer sees
-the actual code instead of a paraphrase of it. If the branch has uncommitted
+usually one short paragraph, with a GitHub permalink only where prose alone
+would leave a reviewer hunting, at most two, and pinned to the commit that
+actually makes the point, the pre-branch one for a cause and the branch tip for
+an intricate implementation. If the branch has uncommitted
 work or no commits at all, it runs the `commit` skill first. If a PR already
 exists, it *updates* the title and body instead of opening a duplicate,
 preserving any hand-curated template content. It only ever touches the current
 branch's PR, never merges, and never rewrites history. Add `-i` /
 `--interactive` to review first, or `--draft` to open a draft.
-Manual-invocation only: run `/create-pr`.
+Triggers on its own when you ask for a PR, or run `/create-pr` directly.
 
 ```bash
 /create-pr              # this repo's remembered language, English by default
