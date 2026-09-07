@@ -68,9 +68,9 @@ commit，它会先调用 `commit` skill。若该分支已存在 PR，则改为**
 这些 skill 无需改动即可在 Claude Code、Codex、Grok 上运行。当某个 harness 缺少
 另一个才有的能力时，skill 会写明替代方案而不是想当然：交互确认使用当前可用的结构化
 提问工具，没有则直接用纯文本发问；`ship-pr` 的等待在有流式监听工具的 harness 上走
-monitor（Claude Code、Grok），没有的则走阻塞式 `pr-watch.sh --once`（Codex）。所有
-git 与 GitHub 操作都封装在随附的 shell 脚本里，只依赖 bash 3.2 加 `git`、`gh`、`jq`，
-不含任何 agent 专有的东西。
+monitor（Claude Code、Grok），没有的则走阻塞式 `pr_watch.py --once`（Codex）。所有
+git 与 GitHub 操作都封装在随附的 Python 脚本里，只依赖 Python 3.9+（纯标准库）加
+`git`、`gh`，不含任何 agent 专有的东西，并且在 Linux、macOS、Windows 上行为一致。
 
 ## 安装
 
@@ -102,3 +102,22 @@ npx skills remove    # 从 agent 中移除
 
 Grok 不在该 CLI 的 `-a` 目标列表里，但它默认会扫描 `~/.claude/skills/` 与
 `.agents/skills/`，因此装到 Claude Code 就等于同时装给了 Grok。
+
+## 开发
+
+随附脚本是纯标准库的 Python 3.9+，跑测试只需要 `pytest`：
+
+```bash
+python -m pip install pytest
+python -m pytest
+```
+
+测试位于仓库根目录的 `tests/`，刻意放在所有 skill 目录之外：安装 skill 只会复制
+它自己那个文件夹，把测试留在 `commit/`、`create-pr/`、`ship-pr/` 之外，用户机器上
+就不会多出测试代码。`pyproject.toml` 已把各个 `scripts/` 目录加入 `pythonpath`，
+测试可以直接把脚本当普通模块导入。
+
+每次 push 和 pull request 都会在 Linux、macOS、Windows 上跑一遍测试
+（`.github/workflows/test.yml`）。整套测试不碰网络、不碰你的 GitHub 账号、也不碰
+你真实的 git 配置：每个用例都在临时仓库里运行，`HOME` 是隔离的，所有会调用 `gh`
+的地方都做了桩替换。

@@ -1,0 +1,23 @@
+[
+  {
+    "id": 1,
+    "user": {
+      "login": "octocat"
+    },
+    "body": "Looks good to me."
+  },
+  {
+    "id": 2,
+    "user": {
+      "login": "coderabbitai[bot]"
+    },
+    "body": "**Actionable comments posted: 7**\n\n<details>\n<summary>Review details</summary>\nstale run\n</details>"
+  },
+  {
+    "id": 3,
+    "user": {
+      "login": "coderabbitai[bot]"
+    },
+    "body": "Actionable comments posted: 3\n\nNewest bot comment wins."
+  }
+]

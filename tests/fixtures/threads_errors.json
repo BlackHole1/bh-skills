@@ -1,0 +1,10 @@
+{
+  "errors": [
+    {
+      "message": "Something went wrong while executing your query."
+    }
+  ],
+  "data": {
+    "repository": null
+  }
+}

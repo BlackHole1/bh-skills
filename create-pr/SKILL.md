@@ -2,7 +2,7 @@
 name: create-pr
 description: Open or update the GitHub Pull Request for the current branch, with an English Conventional-Commits title and a short, reviewable body. Use when the user asks to open, create, or update a PR, wants a PR description written, or says 开 PR / 提 PR / 发 PR. Pass --zh for a Chinese body or --en for English, and the choice is remembered per repo.
 argument-hint: "[--zh | --en] [-i | --interactive] [--draft] [base-branch]"
-allowed-tools: Bash(git diff *), Bash(git log *), Bash(git status *), Bash(git rev-parse *), Bash(git push -u origin HEAD), Bash(git push origin HEAD), Bash(*pr-helper.sh*), Bash(gh pr view *), Bash(gh pr create *), Bash(gh pr edit *), Bash(gh pr diff *), Bash(gh repo view *), Read, Skill, AskUserQuestion
+allowed-tools: Bash(git diff *), Bash(git log *), Bash(git status *), Bash(git rev-parse *), Bash(git push -u origin HEAD), Bash(git push origin HEAD), Bash(*pr_helper.py*), Bash(gh pr view *), Bash(gh pr create *), Bash(gh pr edit *), Bash(gh pr diff *), Bash(gh repo view *), Read, Skill, AskUserQuestion
 ---
 
 # Create PR
@@ -13,16 +13,16 @@ Running this skill is the go-ahead, so it applies directly. `-i` / `--interactiv
 
 Guardrails that always hold: only the current branch and only its PR, no merge, no history rewrite, no force push, and the full title and body printed before they are applied. The only writes outside PR metadata are a plain push of the current branch, which a PR cannot exist without, and whatever the commit skill does when step 2 hands off to it.
 
-> `<skill-dir>` below is this skill's base directory, the folder holding this SKILL.md, which your harness names when it loads a skill. Substitute the real absolute path: your working directory is the user's repo, not the skill.
+> `<skill-dir>` below is this skill's base directory, the folder holding this SKILL.md, which your harness names when it loads a skill. Substitute the real absolute path: your working directory is the user's repo, not the skill. The helper is stdlib-only Python 3; run it with `python3`, or `python` where that alias is missing (typical on Windows).
 
 ## 1. Prepare
 
 Pass the language the user asked for and the base branch if they named one.
 
 ```bash
-bash <skill-dir>/scripts/pr-helper.sh prepare            # this repo's remembered language
-bash <skill-dir>/scripts/pr-helper.sh prepare zh         # --zh or "用中文", also records it
-bash <skill-dir>/scripts/pr-helper.sh prepare en develop # --en against an explicit base
+python3 <skill-dir>/scripts/pr_helper.py prepare            # this repo's remembered language
+python3 <skill-dir>/scripts/pr_helper.py prepare zh         # --zh or "用中文", also records it
+python3 <skill-dir>/scripts/pr_helper.py prepare en develop # --en against an explicit base
 ```
 
 It prints one `STATE` line, then the existing PR, the branch's commits, the diffstat, a capped branch diff, and the repo's PR template. The `lang=` field is already resolved from the argument, this repo's record, or the `en` default, and the record lives in `.git/config` shared with the commit skill.

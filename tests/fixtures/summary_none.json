@@ -1,0 +1,16 @@
+[
+  {
+    "id": 1,
+    "user": {
+      "login": "coderabbitai"
+    },
+    "body": "No actionable comments were generated.\n\nReview details follow."
+  },
+  {
+    "id": 2,
+    "user": {
+      "login": "actionable-human"
+    },
+    "body": "Actionable comments posted: 99 (a human wrote this, ignore it)"
+  }
+]

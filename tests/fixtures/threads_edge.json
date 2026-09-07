@@ -1,0 +1,67 @@
+{
+  "data": {
+    "repository": {
+      "pullRequest": {
+        "reviewThreads": {
+          "nodes": [
+            {
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "a.py",
+              "line": 1,
+              "startLine": null,
+              "comments": {
+                "nodes": []
+              }
+            },
+            {
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "b.py",
+              "line": 2,
+              "startLine": null
+            },
+            {
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "c.py",
+              "line": 3,
+              "startLine": null,
+              "comments": {
+                "nodes": [
+                  {
+                    "databaseId": 4101,
+                    "author": {
+                      "login": "coderabbitai"
+                    },
+                    "createdAt": "2026-01-02T03:04:05Z",
+                    "body": "<!-- only chrome -->\n<!-- and more chrome -->"
+                  }
+                ]
+              }
+            },
+            {
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "d.py",
+              "line": 4,
+              "startLine": null,
+              "comments": {
+                "nodes": [
+                  {
+                    "databaseId": 4102,
+                    "author": {
+                      "login": "coderabbitai"
+                    },
+                    "createdAt": "2026-01-02T03:04:05Z",
+                    "body": "_🔵 Trivial_\n\n<details><summary>📝 Committable suggestion</summary>\n\ndropped by the combined one-line form\n\n</details>\n\n<summary></summary>\n\n</details>\n\nsurvives the stray close tag"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

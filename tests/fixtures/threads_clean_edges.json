@@ -1,0 +1,107 @@
+{
+  "data": {
+    "repository": {
+      "pullRequest": {
+        "reviewThreads": {
+          "nodes": [
+            {
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "tail.py",
+              "line": 1,
+              "startLine": null,
+              "comments": {
+                "nodes": [
+                  {
+                    "databaseId": 5101,
+                    "author": {
+                      "login": "coderabbitai"
+                    },
+                    "createdAt": "2026-01-02T03:04:05Z",
+                    "body": "**Finding.**\n\n<!-- open\nstill inside the comment\n--> trailing text kept"
+                  }
+                ]
+              }
+            },
+            {
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "tilde.py",
+              "line": 2,
+              "startLine": null,
+              "comments": {
+                "nodes": [
+                  {
+                    "databaseId": 5102,
+                    "author": {
+                      "login": "coderabbitai"
+                    },
+                    "createdAt": "2026-01-02T03:04:05Z",
+                    "body": "~~~\n```\n<summary>🧰 Tools</summary>\neaten with the rest of the body"
+                  }
+                ]
+              }
+            },
+            {
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "indent.py",
+              "line": 3,
+              "startLine": null,
+              "comments": {
+                "nodes": [
+                  {
+                    "databaseId": 5103,
+                    "author": {
+                      "login": "coderabbitai"
+                    },
+                    "createdAt": "2026-01-02T03:04:05Z",
+                    "body": "intro\n    ```\n<!-- four spaces is too deep to open a fence, so this is stripped -->\n    ```"
+                  }
+                ]
+              }
+            },
+            {
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "blanks.py",
+              "line": 4,
+              "startLine": null,
+              "comments": {
+                "nodes": [
+                  {
+                    "databaseId": 5104,
+                    "author": {
+                      "login": "coderabbitai"
+                    },
+                    "createdAt": "2026-01-02T03:04:05Z",
+                    "body": "a   \n\n\n\nb"
+                  }
+                ]
+              }
+            },
+            {
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "longclose.py",
+              "line": 5,
+              "startLine": null,
+              "comments": {
+                "nodes": [
+                  {
+                    "databaseId": 5105,
+                    "author": {
+                      "login": "coderabbitai"
+                    },
+                    "createdAt": "2026-01-02T03:04:05Z",
+                    "body": "```\n<summary>🧰 Tools</summary>\n````\nkept after the longer closing marker"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}
