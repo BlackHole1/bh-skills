@@ -1,0 +1,11 @@
+# Dev-only config: pytest discovery for the repo-root test suite. The tests live
+# here (not inside the skill directories) so installing a skill never pulls test
+# code along with it. Each scripts/ dir goes on pythonpath so tests import the
+# helper scripts as plain modules (they are stdlib-only, Python >= 3.9).
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [
+    "commit/scripts",
+    "create-pr/scripts",
+    "ship-pr/scripts",
+]

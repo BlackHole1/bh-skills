@@ -2,7 +2,7 @@
 name: commit
 description: Write a Conventional Commits message for the current change and commit it. Use when the user asks to commit, wants a commit message written, or says 提交. Also what create-pr reaches for when a branch has no commits to open a PR from.
 argument-hint: "[--zh | --en] [-i | --interactive]"
-allowed-tools: Bash(git diff *), Bash(git log *), Bash(git status *), Bash(*commit-helper.sh*), Read, AskUserQuestion
+allowed-tools: Bash(git diff *), Bash(git log *), Bash(git status *), Bash(*commit_helper.py*), Read, AskUserQuestion
 ---
 
 # Commit
@@ -13,16 +13,16 @@ Running this skill is the go-ahead, so it commits directly. `-i` / `--interactiv
 
 Guardrails that always hold: exactly one new commit, at most one new branch, no push, no amend, no history rewrite, and the full message printed before it lands.
 
-> `<skill-dir>` below is this skill's base directory, the folder holding this SKILL.md, which your harness names when it loads a skill. Substitute the real absolute path: your working directory is the user's repo, not the skill.
+> `<skill-dir>` below is this skill's base directory, the folder holding this SKILL.md, which your harness names when it loads a skill. Substitute the real absolute path: your working directory is the user's repo, not the skill. The helper is stdlib-only Python 3; run it with `python3`, or `python` where that alias is missing (typical on Windows).
 
 ## 1. Prepare
 
 Pass the language the user asked for, or nothing at all.
 
 ```bash
-bash <skill-dir>/scripts/commit-helper.sh prepare       # this repo's remembered language
-bash <skill-dir>/scripts/commit-helper.sh prepare zh    # --zh or "用中文", also records it
-bash <skill-dir>/scripts/commit-helper.sh prepare en    # --en or "in English", also records it
+python3 <skill-dir>/scripts/commit_helper.py prepare       # this repo's remembered language
+python3 <skill-dir>/scripts/commit_helper.py prepare zh    # --zh or "用中文", also records it
+python3 <skill-dir>/scripts/commit_helper.py prepare en    # --en or "in English", also records it
 ```
 
 The helper prints one `STATE` line, then recent commits, the staged stat, and the staged diff. Stop early when `repo=no` ("Not a git repository.") or when the output says `NO_CHANGES` (nothing to commit). Otherwise read these fields off `STATE`:
@@ -80,9 +80,11 @@ Print the complete message first, verbatim, in a fenced block, in both modes. Wh
 The single-quoted heredoc keeps backticks, `$`, `!`, and backslashes literal, so write them as-is and never escape them.
 
 ```bash
-bash <skill-dir>/scripts/commit-helper.sh commit "feat/jwt-token-refresh" <<'EOF'
+python3 <skill-dir>/scripts/commit_helper.py commit "feat/jwt-token-refresh" <<'EOF'
 <commit message>
 EOF
 ```
+
+The helper reads the message from stdin, so where no heredoc is available (a Windows shell, for instance) write the message to a temp file and pipe it in instead: `... | python3 <skill-dir>/scripts/commit_helper.py commit "feat/jwt-token-refresh"`.
 
 The helper creates the branch when needed, commits with `-s`, and prints a line such as `COMMITTED branch=feat/jwt-token-refresh created_branch=feat/jwt-token-refresh sha=1a2b3c4`. Report, in the resolved language: the subject and the short SHA, the new branch when `created_branch=` is present, and the auto-staging when step 1 showed `auto_staged=yes`.

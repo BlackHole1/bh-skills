@@ -10,7 +10,7 @@ review round finishes. `pending` with everything else green means *keep waiting*
 not *ready*.
 
 **Summary comment.** CodeRabbit posts (and updates) one PR-level *issue* comment.
-`scripts/pr-comments.sh` reads it for you and surfaces the verdict in its header
+`scripts/pr_comments.py` reads it for you and surfaces the verdict in its header
 line, so you normally don't open it by hand. The verdict is one of:
 - `No actionable comments were generated in the recent review.` → nothing to fix;
   the review is clear.
@@ -50,7 +50,7 @@ reviewer resolve.
 
 - **Other bots** (Sourcery, Qodo/Codium, Greptile, Ellipsis, …) behave like
   CodeRabbit: a status check, line comments, self-resolution. Add their check
-  name to the `botre` pattern in `scripts/pr-state.sh` so they're classed as
+  name to the `botre` pattern in `scripts/pr_state.py` so they're classed as
   review rather than CI.
 - **Human reviewers** don't resolve on a timer. After you push a fix, leave a
   short reply noting what changed, then *don't block forever waiting* — tell the
@@ -59,7 +59,7 @@ reviewer resolve.
 
 ## Don't confuse review checks with CI
 
-`scripts/pr-state.sh` splits checks into `review_bot_checks` and CI. The merge
+`scripts/pr_state.py` splits checks into `review_bot_checks` and CI. The merge
 gate needs both green, but they fail for different reasons: a red CI job is a code
 problem you fix; a red/pending bot check is a review you respond to. Keep them
 distinct when you classify.

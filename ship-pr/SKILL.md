@@ -10,7 +10,7 @@ description: >-
   otherwise stops at "ready to merge". Not for reviewing a diff, opening a PR,
   rebasing, or writing commit messages. Standalone or under /loop; uses gh CLI.
 argument-hint: "[PR] [-y]"
-allowed-tools: Bash(*pr-state.sh*), Bash(*pr-comments.sh*), Bash(*pr-reply.sh*), Bash(*pr-merge.sh*), Bash(*pr-watch.sh*), Bash(*pr-worktree.sh*), Bash(*pr-local-cleanup.sh*), Bash(*commit-helper.sh*), Bash(git -C * push origin HEAD:*), Bash(git -C * push https://github.com/* HEAD:*), Bash(git -C * status*), Bash(git -C * diff*), Bash(git -C * log*), Bash(git -C * show*), Bash(git -C * switch*), Bash(git -C * branch -D *), Bash(gh pr view *), Bash(gh pr checks *), Bash(gh pr diff *), Bash(gh pr edit *), Bash(gh repo view *), Bash(gh run view *), Bash(gh run rerun *), Bash(gh api graphql *), Bash(gh api repos/*), Read, Edit, Write, Grep, Glob, Skill, Monitor, TaskStop, ScheduleWakeup, PushNotification
+allowed-tools: Bash(*pr_state.py*), Bash(*pr_comments.py*), Bash(*pr_reply.py*), Bash(*pr_merge.py*), Bash(*pr_watch.py*), Bash(*pr_worktree.py*), Bash(*pr_local_cleanup.py*), Bash(*commit_helper.py*), Bash(git -C * push origin HEAD:*), Bash(git -C * push https://github.com/* HEAD:*), Bash(git -C * status*), Bash(git -C * diff*), Bash(git -C * log*), Bash(git -C * show*), Bash(git -C * switch*), Bash(git -C * branch -D *), Bash(gh pr view *), Bash(gh pr checks *), Bash(gh pr diff *), Bash(gh pr edit *), Bash(gh repo view *), Bash(gh run view *), Bash(gh run rerun *), Bash(gh api graphql *), Bash(gh api repos/*), Read, Edit, Write, Grep, Glob, Skill, Monitor, TaskStop, ScheduleWakeup, PushNotification
 ---
 
 # ship-pr
@@ -30,6 +30,8 @@ them).
 > `<skill-dir>` below is this skill's base directory, the folder holding this
 > SKILL.md, which your harness names when it loads a skill. Substitute the real
 > absolute path: your working directory is the user's repo, not the skill.
+> The bundled scripts are stdlib-only Python 3; run them with `python3`, or
+> `python` where that alias is missing (typical on Windows).
 
 ## Operating principles
 
@@ -108,7 +110,7 @@ Create it the first time you need to read or change PR code — lazy, a clean
 wait-then-merge PR never needs one:
 
 ```bash
-wt=$(bash <skill-dir>/scripts/pr-worktree.sh ensure <PR> <REPO>)   # prints the path
+wt=$(python3 <skill-dir>/scripts/pr_worktree.py ensure <PR> <REPO>)   # prints the path
 ```
 
 Use the pinned `PR` (integer) and `REPO` from Inputs — never a URL — for the
@@ -122,7 +124,7 @@ worktree key, seed file `/tmp/ship-pr-<PR>.json`, and every helper.
   to the pinned head repository instead (`git -C "$wt" push
   https://github.com/<headRepo>.git HEAD:<headRefName>`); if you can't push to
   the fork, surface it rather than merging around the finding.
-- After the merge: `bash <skill-dir>/scripts/pr-worktree.sh remove <PR> <REPO>`.
+- After the merge: `python3 <skill-dir>/scripts/pr_worktree.py remove <PR> <REPO>`.
 
 ## The loop
 
@@ -132,7 +134,7 @@ merge authorization, until ready).
 ### 1. Assess
 
 ```bash
-bash <skill-dir>/scripts/pr-state.sh <PR> | tee /tmp/ship-pr-<PR>.json
+python3 <skill-dir>/scripts/pr_state.py <PR> | tee /tmp/ship-pr-<PR>.json
 ```
 
 One JSON snapshot: per-check buckets, `ci_all_pass`, reviewer-bot check state,
@@ -155,7 +157,7 @@ First match wins:
 | **All green, nothing unresolved** | `ready_to_merge:true` | §5 |
 
 A *passing* bot check with zero actionable comments is the clean case;
-`pr-comments.sh` surfaces the bot's own verdict ("No actionable comments…" /
+`pr_comments.py` surfaces the bot's own verdict ("No actionable comments…" /
 "Actionable comments posted: N") in its header line.
 
 ### 3. Act
@@ -178,7 +180,7 @@ Pull the failing job's log (`gh run view <id> --log-failed`) and decide:
 #### 3b. Review findings
 
 ```bash
-bash <skill-dir>/scripts/pr-comments.sh <PR>   # cleaned, triage-ready Markdown of every unresolved finding
+python3 <skill-dir>/scripts/pr_comments.py <PR>   # cleaned, triage-ready Markdown of every unresolved finding
 ```
 
 Don't hand-fetch raw GraphQL/REST — the script strips the HTML comments, base64
@@ -197,7 +199,7 @@ Read the code each finding points at in the worktree, then judge each:
   code-grounded reason. Pipe the body — inline quoting breaks on apostrophes:
   ```bash
   printf '%s' "@coderabbitai This is intentional: <reason>." \
-    | bash <skill-dir>/scripts/pr-reply.sh <PR> <reply-to id>
+    | python3 <skill-dir>/scripts/pr_reply.py <PR> <reply-to id>
   ```
   It posts once, retries transient EOF without double-posting. Then wait for
   the bot; if it pushes back with a fair point, reconsider.
@@ -226,7 +228,7 @@ One push + several replies beats many tiny round-trips.
 ### 4. Wait
 
 You're waiting on an external event — CI finishing, the bot posting. Never
-hand-roll `sleep N && <poll>`: `pr-watch.sh` already owns the polling, debounced
+hand-roll `sleep N && <poll>`: `pr_watch.py` already owns the polling, debounced
 so churn never wakes you. Run it whichever of these two ways your harness allows.
 
 **With a streaming-monitor tool** (Claude Code `Monitor`, Grok `monitor`) — arm
@@ -236,7 +238,7 @@ it and let it wake you:
 Monitor(
   description: "PR <N>: CI + reviewer-bot state changes",
   persistent: true,
-  command: PR_WATCH_SEED_FILE=/tmp/ship-pr-<N>.json bash <skill-dir>/scripts/pr-watch.sh <N>
+  command: PR_WATCH_SEED_FILE=/tmp/ship-pr-<N>.json python3 <skill-dir>/scripts/pr_watch.py <N>
 )
 ```
 
@@ -245,7 +247,7 @@ in the foreground with `--once`. It blocks and returns on the first real
 transition, then you loop straight back to Assess:
 
 ```bash
-PR_WATCH_SEED_FILE=/tmp/ship-pr-<N>.json bash <skill-dir>/scripts/pr-watch.sh <N> --once
+PR_WATCH_SEED_FILE=/tmp/ship-pr-<N>.json python3 <skill-dir>/scripts/pr_watch.py <N> --once
 ```
 
 A shell tool that caps command runtime just ends the wait early with no output;
@@ -256,7 +258,7 @@ that is a plain "nothing happened yet", so re-run it.
   *classified on*: a fresh read taken at start-up lands after the assess→wait
   gap and swallows any transition inside it, exactly the miss the seed exists
   to close.
-- `pr-watch.sh` polls every ~5s (`PR_WATCH_INTERVAL` to override) and emits one
+- `pr_watch.py` polls every ~5s (`PR_WATCH_INTERVAL` to override) and emits one
   line per debounced, real transition — merge-recompute churn, bot comment
   edits, and one-poll flashes never wake you.
 - **After arming a monitor, assess once more.** A monitor runs detached, so the
@@ -273,7 +275,7 @@ assess→classify→act cycle per invocation and return; `/loop` provides the ca
 
 ### 5. Merge — or report ready
 
-Terminal gate: `pr-state.sh` reports `ready_to_merge:true` (every check `pass`,
+Terminal gate: `pr_state.py` reports `ready_to_merge:true` (every check `pass`,
 0 unresolved threads, `MERGEABLE`, `CLEAN`, `threads_fetched:true`).
 
 - **Not authorized (no `-y`, no explicit go-ahead):** report the PR ready, ping
@@ -281,7 +283,7 @@ Terminal gate: `pr-state.sh` reports `ready_to_merge:true` (every check `pass`,
   run is complete.
 - **Authorized:**
   ```bash
-  bash <skill-dir>/scripts/pr-merge.sh <N>   # squash by default; --strategy merge|rebase, --subject/--body
+  python3 <skill-dir>/scripts/pr_merge.py <N>   # squash by default; --strategy merge|rebase, --subject/--body
   ```
   It re-confirms the gate (exit 3 = not actually ready → back to Assess),
   preserves the repo's DCO sign-off, retries transient EOF, is a no-op if
@@ -293,9 +295,9 @@ Terminal gate: `pr-state.sh` reports `ready_to_merge:true` (every check `pass`,
 
 Once merged, tidy up:
 
-- **Your work area:** `bash <skill-dir>/scripts/pr-worktree.sh remove <PR>`, and stop
+- **Your work area:** `python3 <skill-dir>/scripts/pr_worktree.py remove <PR>`, and stop
   any monitor you armed (§4).
-- **The user's checkout:** `bash <skill-dir>/scripts/pr-local-cleanup.sh <PR>` — the one
+- **The user's checkout:** `python3 <skill-dir>/scripts/pr_local_cleanup.py <PR>` — the one
   sanctioned touch of it. Returns them to the base branch, fast-forwards, and
   deletes the merged local branch, each step self-gated (confirmed `MERGED`,
   clean tree, branch proven contained in what GitHub merged). Exit 3 means
@@ -310,23 +312,23 @@ replied to, and what the local cleanup did or why it skipped.
 All scripts retry transient GitHub API failures (`EOF`/5xx) internally — prefer
 them over hand-issued `gh api`.
 
-- `<skill-dir>/scripts/pr-state.sh <PR> [OWNER/REPO]` — one-shot JSON health snapshot; use
+- `<skill-dir>/scripts/pr_state.py <PR> [OWNER/REPO]` — one-shot JSON health snapshot; use
   for every Assess.
-- `<skill-dir>/scripts/pr-comments.sh <PR> [OWNER/REPO] [--all|--full|--json|--no-summary]`
+- `<skill-dir>/scripts/pr_comments.py <PR> [OWNER/REPO] [--all|--full|--json|--no-summary]`
   — unresolved findings as cleaned, triage-ready Markdown; run it the moment a
   bot posts findings or `unresolved>0`.
-- `<skill-dir>/scripts/pr-reply.sh <PR> <reply-to id> [OWNER/REPO]` — idempotent in-thread
+- `<skill-dir>/scripts/pr_reply.py <PR> <reply-to id> [OWNER/REPO]` — idempotent in-thread
   reply (body from stdin or `--body-file`).
-- `<skill-dir>/scripts/pr-merge.sh <PR> [OWNER/REPO] [--subject|--body|--strategy]` —
+- `<skill-dir>/scripts/pr_merge.py <PR> [OWNER/REPO] [--subject|--body|--strategy]` —
   gated, DCO-preserving, idempotent, verify-after merge.
-- `<skill-dir>/scripts/pr-watch.sh <PR> [OWNER/REPO] [--once]` — debounced
+- `<skill-dir>/scripts/pr_watch.py <PR> [OWNER/REPO] [--once]` — debounced
   change-emitting poll loop; seed via `PR_WATCH_SEED_FILE`. Streams for a
   monitor tool, or blocks until the first real change with `--once`.
-- `<skill-dir>/scripts/pr-worktree.sh ensure|remove|path <PR> [OWNER/REPO]` — the isolated
+- `<skill-dir>/scripts/pr_worktree.py ensure|remove|path <PR> [OWNER/REPO]` — the isolated
   detached worktree (or clone) synced to the PR head.
-- `<skill-dir>/scripts/pr-local-cleanup.sh <PR> [OWNER/REPO] [--base B] [--dry-run]` —
+- `<skill-dir>/scripts/pr_local_cleanup.py <PR> [OWNER/REPO] [--base B] [--dry-run]` —
   post-merge only; self-gated tidy of the user's local checkout.
-- `<skill-dir>/scripts/gh-retry.sh` — retry wrapper the other scripts source.
+- `<skill-dir>/scripts/gh_retry.py` — retry wrapper the other scripts import.
 - `<skill-dir>/references/gh-cookbook.md` — raw `gh` / GraphQL commands behind the scripts.
 - `<skill-dir>/references/reviewer-bots.md` — reading CodeRabbit and other reviewers:
   verdicts, resolution semantics, human reviewers, review-vs-CI checks.

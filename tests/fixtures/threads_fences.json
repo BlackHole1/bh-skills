@@ -1,0 +1,50 @@
+{
+  "data": {
+    "repository": {
+      "pullRequest": {
+        "reviewThreads": {
+          "nodes": [
+            {
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "README.md",
+              "line": 1,
+              "startLine": null,
+              "comments": {
+                "nodes": [
+                  {
+                    "databaseId": 3101,
+                    "author": {
+                      "login": "coderabbitai[bot]"
+                    },
+                    "createdAt": "2026-01-02T03:04:05Z",
+                    "body": "_⚠️ Potential issue_ | _🟠 Major_\n\n**Escape the markup in the docs example.**\n\nThe README renders raw HTML today:\n\n```html\n<details>\n<summary>📝 Committable suggestion</summary>\n<!-- not a real state blob -->\n</details>\n```\n\nAnd the tilde form, closed by a longer marker:\n\n~~~markdown\n<summary>🧰 Tools</summary>\n<!-- keep me verbatim -->\n~~~~\n\nA four-backtick fence can hold three-backtick fences:\n\n````\n```\n<summary>💡 Tips</summary>\n```\n````\n\nA backtick in the info string means it is not an opener:\n\n``` `weird` info string\n<summary>Not protected, so this gets unwrapped</summary>\n\nAn unclosed fence protects nothing:\n\n```text\n<!-- own-line comment, still stripped because nothing closes the fence -->\nthis line is emitted verbatim all the same"
+                  }
+                ]
+              }
+            },
+            {
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "scripts/run.sh",
+              "line": 7,
+              "startLine": null,
+              "comments": {
+                "nodes": [
+                  {
+                    "databaseId": 3102,
+                    "author": {
+                      "login": "octocat"
+                    },
+                    "createdAt": "2026-01-02T03:04:05Z",
+                    "body": "Repro script:\n\n```sh\n<!-- this comment lives inside a fence and must survive -->\necho hi\n```\n\n<!-- this one is own-line chrome and is stripped -->\nDone."
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

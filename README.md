@@ -81,9 +81,10 @@ an affordance another lacks, the skill names the alternative instead of assuming
 it: the interactive prompt uses whichever structured-question tool is available
 and falls back to asking in plain text, and `ship-pr` waits on a streaming
 monitor where one exists (Claude Code, Grok) or on a blocking
-`pr-watch.sh --once` where none does (Codex). All the git and GitHub work lives
-in the bundled shell scripts, which need only bash 3.2 with `git`, `gh`, and
-`jq` — nothing agent-specific.
+`pr_watch.py --once` where none does (Codex). All the git and GitHub work lives
+in the bundled Python scripts, which need only Python 3.9+ (stdlib only) with
+`git` and `gh` — nothing agent-specific, and they run the same on Linux, macOS,
+and Windows.
 
 ## Installation
 
@@ -115,3 +116,25 @@ npx skills remove    # remove from your agents
 
 Grok is not one of the CLI's `-a` targets, but it scans `~/.claude/skills/` and
 `.agents/skills/` by default, so a Claude Code install covers Grok as well.
+
+## Development
+
+The helper scripts are stdlib-only Python 3.9+, so the test suite needs nothing
+but `pytest`:
+
+```bash
+python -m pip install pytest
+python -m pytest
+```
+
+Tests live in `tests/` at the repo root, deliberately outside every skill
+directory: installing a skill copies its own folder, so keeping the suite out of
+`commit/`, `create-pr/`, and `ship-pr/` means no test code lands on a user's
+machine. `pyproject.toml` puts each `scripts/` directory on `pythonpath` so the
+tests import the helpers as plain modules.
+
+Every push and pull request runs the suite on Linux, macOS, and Windows
+(`.github/workflows/test.yml`). Nothing in the suite touches the network, your
+GitHub account, or your real git config: each test runs against a throwaway
+repository with an isolated `HOME`, and everything that would call `gh` is
+stubbed.

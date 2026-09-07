@@ -1,0 +1,16 @@
+[
+  {
+    "id": 1,
+    "user": {
+      "login": "sourcery-ai[bot]"
+    },
+    "body": "Sourcery reviewed this PR and left 2 suggestions."
+  },
+  {
+    "id": 2,
+    "user": {
+      "login": "octocat"
+    },
+    "body": "ping"
+  }
+]

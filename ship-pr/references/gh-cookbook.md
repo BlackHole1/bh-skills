@@ -13,7 +13,7 @@ gh pr view "$PR" --json number,url,state,headRefName,baseRefName,isDraft
 
 ## Assess state
 
-Prefer `scripts/pr-state.sh "$PR"` for a one-shot JSON snapshot. Raw pieces:
+Prefer `scripts/pr_state.py "$PR"` for a one-shot JSON snapshot. Raw pieces:
 
 ```bash
 gh pr checks "$PR" --json name,bucket,state          # bucket: pass|fail|pending|skipping|cancel
@@ -25,7 +25,7 @@ gh pr view "$PR" --json mergeable,mergeStateStatus,reviewDecision,state
 
 ## Read review threads (with bodies, authors, resolution, reply ids)
 
-**Prefer the bundled script** — `scripts/pr-comments.sh "$PR"` fetches these
+**Prefer the bundled script** — `scripts/pr_comments.py "$PR"` fetches these
 threads *and* the bot summary, strips the noise (HTML comments, base64 state,
 duplicated suggestion blocks), and prints cleaned Markdown with severity tags,
 `path:line`, fix diffs, reply-to ids, and the actionable verdict. Reach for the
@@ -64,7 +64,7 @@ gh api "repos/$OWNER/$REPO/issues/$PR/comments" \
 
 ## Reply to a review comment (dispute a false positive)
 
-**Prefer `scripts/pr-reply.sh "$PR" "$COMMENT_ID"`** with the body on stdin — it
+**Prefer `scripts/pr_reply.py "$PR" "$COMMENT_ID"`** with the body on stdin — it
 avoids the shell-quoting hazards of an inline body (an apostrophe/backtick in the
 reason breaks `-f body=`), is idempotent, and retries a transient EOF without
 double-posting. Raw form (note `-F body=@-` reads stdin; never inline a body with
@@ -75,7 +75,7 @@ printf '%s' "@coderabbitai This is intentional: <concise technical reason>." \
   | gh api "repos/$OWNER/$REPO/pulls/$PR/comments/$COMMENT_ID/replies" -F body=@-
 ```
 `COMMENT_ID` = a `databaseId` from the GraphQL query above (or the `reply-to id`
-that `scripts/pr-comments.sh` prints).
+that `scripts/pr_comments.py` prints).
 
 Addressing CodeRabbit directly with `@coderabbitai` makes it respond and, if it
 agrees, resolve the thread. For a general (non-thread) note use
@@ -92,13 +92,13 @@ here only so it's recognizable and explicitly avoided.
 Never edit the user's checkout. Work in the worktree synced to the PR head:
 
 ```bash
-wt=$(scripts/pr-worktree.sh ensure "$PR")      # detached worktree at the PR head
+wt=$(scripts/pr_worktree.py ensure "$PR")      # detached worktree at the PR head
 # edit files under "$wt", run the project's own checks THERE, then:
 git -C "$wt" commit -s -am "fix(scope): address review — <what>"
 git -C "$wt" push origin HEAD:<headRefName>    # same-repo PR; never --force
 # fork PR — push to the fork instead (needs write access to it):
 #   git -C "$wt" push https://github.com/<headOwner>/<headRepo>.git HEAD:<headRefName>
-scripts/pr-worktree.sh remove "$PR"            # after the PR is merged
+scripts/pr_worktree.py remove "$PR"            # after the PR is merged
 ```
 
 Resolve `<headRefName>` and whether it's a fork:
@@ -116,7 +116,7 @@ gh run rerun <run-id> --failed
 
 ## Merge
 
-**Prefer `scripts/pr-merge.sh "$PR"`** — it re-confirms the ready gate, preserves
+**Prefer `scripts/pr_merge.py "$PR"`** — it re-confirms the ready gate, preserves
 the DCO sign-off, retries a transient EOF, runs remote-only (`-R`, so gh never
 fast-forwards your local checkout), and verifies the result (idempotent: a no-op
 if already merged, never a double-merge). Raw form:

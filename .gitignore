@@ -6,7 +6,7 @@
 ._*
 
 # Custom folder icons
-Icon
+Icon
 
 # Volume root files
 .DocumentRevisions-V100
@@ -29,6 +29,11 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+### Python
+__pycache__/
+*.pyc
+.pytest_cache/
 
 ### Linux
 # Backup files

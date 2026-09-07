@@ -1,0 +1,208 @@
+{
+  "data": {
+    "repository": {
+      "pullRequest": {
+        "reviewThreads": {
+          "nodes": [
+            {
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "src/app.py",
+              "line": 12,
+              "startLine": null,
+              "comments": {
+                "nodes": [
+                  {
+                    "databaseId": 2101,
+                    "author": {
+                      "login": "coderabbitai"
+                    },
+                    "createdAt": "2026-01-02T03:04:05Z",
+                    "body": "<!-- This is an auto-generated comment by CodeRabbit -->\n\n_⚠️ Potential issue_ | _🔴 Critical_\n\n**Guard the index before dereferencing `items[idx]`.**\n\n`idx` can equal `len(items)` after the loop, so the last iteration raises\nIndexError instead of returning the tail element.\n\n<details>\n<summary>📝 Committable suggestion</summary>\n\n> ℹ️ **Note**\n> Carefully review the code before committing.\n\n```suggestion\n    if idx < len(items):\n        return items[idx]\n```\n\n</details>\n\n<details>\n<summary>🧰 Tools</summary>\n\n<details>\n<summary>🪛 Ruff (0.8.2)</summary>\n\n12-12: Unused import `os`\n\n(F401)\n\n</details>\n\n</details>\n\n<details>\n<summary>🤖 Prompt for AI Agents</summary>\n\n```\nIn src/app.py around lines 10 to 14, guard the index before use.\n```\n\n</details>\n\nAlso applies to: 30-34\n\n<!-- This is an auto-generated comment: internal state -->\n<!--\n{\"state\":\"H4sIAAAAAAAAA1WOwQqDMBBEf2XZcxHtwUJvpZfSQqG9lB6WuGpojIFsFCn+e6O0hR5n\"\n\"5s3Om9UQAxbTaJ2uibVno3XQNIm1tqXkOMpRgZK9j5WIwWJsYKuKMcXY0FYVY4qxwa0qxpQ=\"\n-->\n\n<!-- fingerprinting:phantom:poseidon:whale"
+                  }
+                ]
+              }
+            },
+            {
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "src/retry.py",
+              "line": 88,
+              "startLine": null,
+              "comments": {
+                "nodes": [
+                  {
+                    "databaseId": 2102,
+                    "author": {
+                      "login": "coderabbitai"
+                    },
+                    "createdAt": "2026-01-02T03:04:05Z",
+                    "body": "_🛠️ Refactor suggestion_ | _🟠 Major_\n\n**Extract the retry loop into a helper.**\n\nThe same twelve lines appear at three call sites.\n\n<details>\n<summary>How to simplify code</summary>\n\nPull the loop into `retry(fn, tries)` and call it from each site.\n\n<details>\n<summary>🪛 markdownlint-cli2 (0.17.2)</summary>\n\n42-42: Bare URL used\n\n</details>\n\nThat keeps the diff small.\n\n</details>\n\n<details>\n<summary>✨ Finishing Touches</summary>\n\n- [ ] 📝 Generate Docstrings\n\n</details>\n\n<details>\n<summary>💡 Tips</summary>\n\nChat with CodeRabbit Bot by mentioning it.\n\n</details>"
+                  }
+                ]
+              }
+            },
+            {
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "src/paths.py",
+              "line": 5,
+              "startLine": null,
+              "comments": {
+                "nodes": [
+                  {
+                    "databaseId": 2103,
+                    "author": {
+                      "login": "coderabbitai"
+                    },
+                    "createdAt": "2026-01-02T03:04:05Z",
+                    "body": "_🧹 Nitpick_ | _🟡 Minor_\n\n**Prefer `pathlib` over `os.path` here.**\n\nIt reads better and is what the rest of the module uses.\n\n<!-- cr-comment-id: 12345 -->"
+                  },
+                  {
+                    "databaseId": 2104,
+                    "author": {
+                      "login": "octocat"
+                    },
+                    "createdAt": "2026-01-02T03:04:05Z",
+                    "body": "Disagree — `os.path` is deliberate, we still support 3.5 here.\n\n<!-- reviewer scratch note -->\nSecond line mentions <!-- an inline opener --> and must stay whole."
+                  }
+                ]
+              }
+            },
+            {
+              "isResolved": false,
+              "isOutdated": true,
+              "path": "src/util.py",
+              "line": 41,
+              "startLine": null,
+              "comments": {
+                "nodes": [
+                  {
+                    "databaseId": 2105,
+                    "author": {
+                      "login": "coderabbitai"
+                    },
+                    "createdAt": "2026-01-02T03:04:05Z",
+                    "body": "_🧹 Nitpick (assertive)_ | _⚡ Quick win_\n\n**Drop the redundant `str()` call.**\n\n`name` is already a string at this point."
+                  }
+                ]
+              }
+            },
+            {
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "src/auth.py",
+              "line": 77,
+              "startLine": null,
+              "comments": {
+                "nodes": [
+                  {
+                    "databaseId": 2106,
+                    "author": {
+                      "login": "greptile-apps[bot]"
+                    },
+                    "createdAt": "2026-01-02T03:04:05Z",
+                    "body": "## 🔴 Logic error\n\n`user_id` is compared with `is` instead of `==` in `auth.py`."
+                  }
+                ]
+              }
+            },
+            {
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "README.md",
+              "line": 3,
+              "startLine": null,
+              "comments": {
+                "nodes": [
+                  {
+                    "databaseId": 2107,
+                    "author": {
+                      "login": "sourcery-ai[bot]"
+                    },
+                    "createdAt": "2026-01-02T03:04:05Z",
+                    "body": "_📋 Documentation_ | _🔍 Verification agent_\n\n**Confirm the flag is documented.**\n\nI could not find `--no-summary` in the README."
+                  }
+                ]
+              }
+            },
+            {
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "docs/guide.md",
+              "line": 19,
+              "startLine": null,
+              "comments": {
+                "nodes": [
+                  {
+                    "databaseId": 2108,
+                    "author": {
+                      "login": "precursor"
+                    },
+                    "createdAt": "2026-01-02T03:04:05Z",
+                    "body": "This is fine, but see <!-- ref: #12 --> the discussion in #12.\n\n<!-- reviewer scratch -->\n\n<details>\n<summary>My own collapsible</summary>\n\nHumans keep their markup untouched.\n\n</details>"
+                  }
+                ]
+              }
+            },
+            {
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "src/ghost.py",
+              "line": null,
+              "startLine": 42,
+              "comments": {
+                "nodes": [
+                  {
+                    "databaseId": 2109,
+                    "author": null,
+                    "createdAt": "2026-01-02T03:04:05Z",
+                    "body": "Ghost comment from a deleted account."
+                  }
+                ]
+              }
+            },
+            {
+              "isResolved": true,
+              "isOutdated": false,
+              "path": "src/io.py",
+              "line": 64,
+              "startLine": null,
+              "comments": {
+                "nodes": [
+                  {
+                    "databaseId": 2110,
+                    "author": {
+                      "login": "coderabbitai"
+                    },
+                    "createdAt": "2026-01-02T03:04:05Z",
+                    "body": "_⚠️ Potential issue_ | _🟠 Major_\n\n**Use a context manager for the file handle.**\n\n<details>\n<summary>🧰 Tools</summary>\n\nnothing to see here\n\n</details>"
+                  }
+                ]
+              }
+            },
+            {
+              "isResolved": true,
+              "isOutdated": false,
+              "path": null,
+              "line": null,
+              "startLine": null,
+              "comments": {
+                "nodes": [
+                  {
+                    "databaseId": 2111,
+                    "author": {
+                      "login": "cursorfan"
+                    },
+                    "createdAt": "2026-01-02T03:04:05Z",
+                    "body": "Nice catch, fixed in 9f3a1c2."
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}
