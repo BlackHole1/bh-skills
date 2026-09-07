@@ -50,8 +50,9 @@ reviewer resolve.
 
 - **Other bots** (Sourcery, Qodo/Codium, Greptile, Ellipsis, …) behave like
   CodeRabbit: a status check, line comments, self-resolution. Add their check
-  name to the `botre` pattern in `scripts/pr_state.py` so they're classed as
-  review rather than CI.
+  name to `BOT_RE` in `scripts/pr_state.py` so they're classed as review rather
+  than CI, and their login to the bot-login patterns at the top of
+  `scripts/pr_comments.py` so their comments are read as bot comments.
 - **Human reviewers** don't resolve on a timer. After you push a fix, leave a
   short reply noting what changed, then *don't block forever waiting* — tell the
   user a human re-review is pending and let them decide. Auto-merging past a

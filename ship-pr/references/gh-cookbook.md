@@ -93,11 +93,13 @@ Never edit the user's checkout. Work in the worktree synced to the PR head:
 
 ```bash
 wt=$(python3 <skill-dir>/scripts/pr_worktree.py ensure "$PR")   # detached worktree at the PR head
-# edit files under "$wt", run the project's own checks THERE, then:
-git -C "$wt" commit -s -am "fix(scope): address review — <what>"
+# edit files under "$wt", run the checks the allowlist covers there, then commit
+# through the commit skill with "$wt" as the working directory (SKILL.md,
+# "Committing and PR hygiene"), then:
 git -C "$wt" push origin HEAD:<headRefName>    # same-repo PR; never --force
-# fork PR — push to the fork instead (needs write access to it):
-#   git -C "$wt" push https://github.com/<headOwner>/<headRepo>.git HEAD:<headRefName>
+# fork PR — push to the fork instead (needs write access to it); <headRepo> is
+# the owner/repo pinned in Inputs:
+#   git -C "$wt" push https://github.com/<headRepo>.git HEAD:<headRefName>
 python3 <skill-dir>/scripts/pr_worktree.py remove "$PR"         # after the PR is merged
 ```
 

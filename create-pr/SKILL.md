@@ -1,6 +1,6 @@
 ---
 name: create-pr
-description: Open or update the GitHub Pull Request for the current branch, with an English Conventional-Commits title and a short, reviewable body. Use when the user asks to open, create, or update a PR, wants a PR description written, or says 开 PR / 提 PR / 发 PR. Pass --zh for a Chinese body or --en for English, and the choice is remembered per repo.
+description: Open or update the GitHub Pull Request for the current branch, with an English Conventional-Commits title and a short, reviewable body. Use when the user asks to open, create, or update a PR, wants a PR description written, or says 开 PR / 提 PR / 发 PR. Pass --zh for a Chinese body or --en for English, and the choice is remembered per repo. Not for merging, waiting on CI, or working through review comments.
 argument-hint: "[--zh | --en] [-i | --interactive] [--draft] [base-branch]"
 allowed-tools: Bash(git diff *), Bash(git log *), Bash(git status *), Bash(git rev-parse *), Bash(git push -u origin HEAD), Bash(git push origin HEAD), Bash(*pr_helper.py*), Bash(gh pr view *), Bash(gh pr create *), Bash(gh pr edit *), Bash(gh pr diff *), Bash(gh repo view *), Read, Skill, AskUserQuestion
 ---
