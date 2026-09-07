@@ -93,20 +93,24 @@ Never edit the user's checkout. Work in the worktree synced to the PR head:
 
 ```bash
 wt=$(python3 <skill-dir>/scripts/pr_worktree.py ensure "$PR")   # detached worktree at the PR head
+# Ref names come from the PR author, so hold them in variables and quote them
+# rather than pasting the raw value into a command line.
+headRefName=$(gh pr view "$PR" --json headRefName -q .headRefName)
+headRepo=$(gh pr view "$PR" --json headRepositoryOwner,headRepository \
+  -q '.headRepositoryOwner.login + "/" + .headRepository.name')   # owner/repo of the head
 # edit files under "$wt", run the checks the allowlist covers there, then commit
 # through the commit skill with "$wt" as the working directory (SKILL.md,
 # "Committing and PR hygiene"), then:
-git -C "$wt" push origin HEAD:<headRefName>    # same-repo PR; never --force
-# fork PR — push to the fork instead (needs write access to it); <headRepo> is
-# the owner/repo pinned in Inputs:
-#   git -C "$wt" push https://github.com/<headRepo>.git HEAD:<headRefName>
+git -C "$wt" push origin "HEAD:$headRefName"    # same-repo PR; never --force
+# fork PR — push to the fork instead (needs write access to it):
+#   git -C "$wt" push "https://github.com/$headRepo.git" "HEAD:$headRefName"
 python3 <skill-dir>/scripts/pr_worktree.py remove "$PR"         # after the PR is merged
 ```
 
-Resolve `<headRefName>` and whether it's a fork:
+Whether it's a fork:
 
 ```bash
-gh pr view "$PR" --json headRefName,isCrossRepository,headRepositoryOwner,headRepository
+gh pr view "$PR" --json isCrossRepository -q .isCrossRepository
 ```
 
 ## Re-run a failing job (suspected flake)
