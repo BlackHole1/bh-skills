@@ -410,6 +410,11 @@ CJK_EMOJI_MESSAGE = (
 )
 LATIN1_MESSAGE = b"fix: latin1 caf\xe9 body\n"
 
+# run_bytes() reads stdout raw, so no universal-newline translation: the helper
+# print()s in text mode and Windows emits \r\n there. The text-mode fixtures
+# elsewhere hide this; here it must be tolerated explicitly.
+COMMITTED_LINE = r"COMMITTED branch=feature sha=[0-9a-f]+\r?\n"
+
 
 def run_bytes(cmd, cwd, env, stdin=None):
     """subprocess.run in BINARY mode. The conftest `sh` fixture is text-mode
@@ -450,9 +455,7 @@ def test_cjk_emoji_message_survives_any_stdin_encoding(
     r = run_bytes([sys.executable, HELPER, "commit", "slug"], repo, env, stdin=raw)
     assert r.returncode == 0, r.stderr
     assert b"Traceback" not in r.stderr
-    assert re.fullmatch(
-        r"COMMITTED branch=feature sha=[0-9a-f]+\n", r.stdout.decode("utf-8")
-    )
+    assert re.fullmatch(COMMITTED_LINE, r.stdout.decode("utf-8"))
 
     stored = run_bytes(["git", "log", "-1", "--format=%B"], repo, isolated_env).stdout
     # byte-for-byte: git appends only its sign-off trailer after our bytes
@@ -474,9 +477,7 @@ def test_invalid_utf8_message_commits_instead_of_crashing(
     assert r.returncode == 0, r.stderr
     assert b"Traceback" not in r.stderr
     assert b"UnicodeDecodeError" not in r.stderr
-    assert re.fullmatch(
-        r"COMMITTED branch=feature sha=[0-9a-f]+\n", r.stdout.decode("utf-8")
-    )
+    assert re.fullmatch(COMMITTED_LINE, r.stdout.decode("utf-8"))
     # git owns whatever re-encoding happens next; we only promise it got there
     stored = run_bytes(["git", "log", "-1", "--format=%B"], repo, isolated_env).stdout
     assert b"fix: latin1 caf" in stored
