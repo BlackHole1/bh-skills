@@ -85,6 +85,6 @@ python3 <skill-dir>/scripts/commit_helper.py commit "feat/jwt-token-refresh" <<'
 EOF
 ```
 
-The helper reads the message from stdin, so where no heredoc is available (a Windows shell, for instance) write the message to a temp file and pipe it in instead: `... | python3 <skill-dir>/scripts/commit_helper.py commit "feat/jwt-token-refresh"`.
+The helper reads the message from stdin, so where no heredoc is available (a Windows shell, for instance) write the message to a temp file and feed its raw bytes in. A text-mode pipe such as PowerShell's `Get-Content` can re-encode a Chinese body, so read the file through Python: `python3 -c "import sys,pathlib; sys.stdout.buffer.write(pathlib.Path('msg.txt').read_bytes())" | python3 <skill-dir>/scripts/commit_helper.py commit "feat/jwt-token-refresh"`.
 
 The helper creates the branch when needed, commits with `-s`, and prints a line such as `COMMITTED branch=feat/jwt-token-refresh created_branch=feat/jwt-token-refresh sha=1a2b3c4`. Report, in the resolved language: the subject and the short SHA, the new branch when `created_branch=` is present, and the auto-staging when step 1 showed `auto_staged=yes`.

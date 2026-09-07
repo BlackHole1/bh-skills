@@ -28,6 +28,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The job runs PR code under pytest; nothing here pushes, so the
+          # token must not sit in .git/config where that code could read it.
+          persist-credentials: false
 
       - uses: actions/setup-python@v5
         with:

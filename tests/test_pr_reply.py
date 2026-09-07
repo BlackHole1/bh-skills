@@ -394,6 +394,9 @@ def test_parse_concatenated_arrays_flattens_pages():
         {"b": 2},
     ]
     assert pr_reply.parse_concatenated_arrays("[]") == []
+    # one leading BOM is skipped like jq (and loads_json); a second is garbage
+    assert pr_reply.parse_concatenated_arrays("\ufeff[1][2]") == [1, 2]
+    assert pr_reply.parse_concatenated_arrays("\ufeff\ufeff[1]") == []
     assert pr_reply.parse_concatenated_arrays("") == []
     assert pr_reply.parse_concatenated_arrays("  \n ") == []
 

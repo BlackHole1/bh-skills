@@ -458,6 +458,56 @@ def test_ensure_degrades_when_the_base_path_is_occupied(monkeypatch, pin_tmp, ca
     assert gh.calls[-1] == ["gh", "repo", "clone", "o/r", wt, "--", "-q"]
 
 
+def test_ensure_refuses_a_symlinked_base(monkeypatch, pin_tmp, capsys):
+    # /tmp is shared on Linux: a symlink another user planted where the base
+    # belongs would redirect the clone, the reset --hard and the rm -rf — and
+    # the fixes later pushed from there. Refuse before any git/gh call.
+    gh = FakeRunner([(VIEW, RunResult("someone/else\n", "", 0))])
+    monkeypatch.setattr(pr_worktree, "_gh", gh)
+    monkeypatch.setattr(pr_worktree, "_git", FakeRunner())
+    wt = pr_worktree.worktree_path("o/r", "5")
+    base = os.path.dirname(wt)
+    victim = pin_tmp / "planted"
+    victim.mkdir()
+    make_symlink_or_skip(base, str(victim))
+    assert pr_worktree.main(["ensure", "5", "o/r"]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == "{} is a symlink (refusing: another user may have planted it)\n".format(base)
+    assert gh.calls == []  # not even the mode-selecting repo view
+    assert os.path.islink(base)  # left alone, never unlinked or chmodded
+    assert list(victim.iterdir()) == []
+    # remove would rm -rf through the same link, so it refuses too
+    git = FakeRunner()
+    monkeypatch.setattr(pr_worktree, "_git", git)
+    assert pr_worktree.main(["remove", "5", "o/r"]) == 1
+    assert capsys.readouterr().out == ""
+    assert git.calls == []
+    assert os.path.islink(base)
+
+
+def test_ensure_closes_a_group_or_world_writable_base(monkeypatch, pin_tmp, capsys):
+    # A base anyone can write into lets another user plant the worktree entry
+    # itself; we own it, so tighten it to 0700 instead of refusing.
+    if not hasattr(os, "getuid"):
+        # Windows: per-user temp dir, no POSIX ownership or mode bits (os.stat
+        # reports 0o777 for every writable directory), so nothing to tighten.
+        pytest.skip("POSIX ownership and mode bits only")
+    gh = FakeRunner([(VIEW, RunResult("someone/else\n", "", 0))])
+    monkeypatch.setattr(pr_worktree, "_gh", gh)
+    monkeypatch.setattr(pr_worktree, "_git", FakeRunner())
+    wt = pr_worktree.worktree_path("o/r", "5")
+    base = os.path.dirname(wt)
+    os.makedirs(base)
+    os.chmod(base, 0o777)
+    if stat.S_IMODE(os.stat(base).st_mode) != 0o777:
+        pytest.skip("directory mode bits are not honored on this filesystem")
+    assert pr_worktree.main(["ensure", "5", "o/r"]) == 0
+    assert capsys.readouterr().out == wt + "\n"
+    assert stat.S_IMODE(os.stat(base).st_mode) == 0o700
+    assert gh.calls[-1] == ["gh", "repo", "clone", "o/r", wt, "--", "-q"]
+
+
 def test_ensure_fetch_failure_exits_1_worktree_mode(monkeypatch, pin_tmp, capsys):
     gh = FakeRunner([(VIEW, RunResult("o/r\n", "", 0))])
     git = FakeRunner(

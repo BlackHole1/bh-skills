@@ -295,7 +295,7 @@ Terminal gate: `pr_state.py` reports `ready_to_merge:true` (every check `pass`,
 
 Once merged, tidy up:
 
-- **Your work area:** `python3 <skill-dir>/scripts/pr_worktree.py remove <PR>`, and stop
+- **Your work area:** `python3 <skill-dir>/scripts/pr_worktree.py remove <PR> <REPO>`, and stop
   any monitor you armed (§4).
 - **The user's checkout:** `python3 <skill-dir>/scripts/pr_local_cleanup.py <PR>` — the one
   sanctioned touch of it. Returns them to the base branch, fast-forwards, and

@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import stat
 import sys
 import tempfile
 from typing import Sequence
@@ -121,6 +122,41 @@ def worktree_path(target: str, pr: str) -> str:
     return os.path.join(base, "{}-pr-{}".format(slug, pr))
 
 
+def _guard_base(base: str) -> str:
+    """Refuse a base another local user could have planted. On Linux
+    tempfile.gettempdir() is the shared, world-writable /tmp, so a pre-existing
+    symlink there (or a directory someone else owns, or one anyone can write
+    into) would redirect every clone, reset --hard, rm -rf — and the fixes
+    pushed from that checkout — to a location of their choosing.
+
+    Returns '' when base is a real directory of ours that only we can write,
+    else a one-line diagnostic. A missing or occupied (non-directory) base is
+    not a hijack: makedirs already reported it and, like the shell, the clone
+    decides the rc. Windows has per-user temp dirs and no POSIX ownership
+    bits, so only the symlink check applies there."""
+    try:
+        st = os.lstat(base)
+    except OSError:
+        return ""
+    if stat.S_ISLNK(st.st_mode):
+        return "{} is a symlink (refusing: another user may have planted it)".format(base)
+    if not stat.S_ISDIR(st.st_mode):
+        return ""
+    if hasattr(os, "getuid"):
+        if st.st_uid != os.getuid():
+            return "{} is owned by uid {}, not you (refusing a foreign base)".format(
+                base, st.st_uid
+            )
+        if stat.S_IMODE(st.st_mode) & 0o022:
+            try:
+                os.chmod(base, 0o700)
+            except OSError as exc:
+                return "{} is group/world writable and chmod 700 failed: {}".format(
+                    base, exc.strerror or exc
+                )
+    return ""
+
+
 def main(argv: Sequence[str]) -> int:
     force_utf8()
 
@@ -148,24 +184,32 @@ def main(argv: Sequence[str]) -> int:
     if cmd == "path":
         print(wt)
         return 0
+    if cmd not in ("remove", "ensure"):
+        sys.stderr.write("unknown command: {}\n".format(cmd))
+        return 2
+
+    if cmd == "ensure":
+        try:
+            os.makedirs(base, mode=0o700, exist_ok=True)
+        except OSError as exc:
+            # The shell had no `set -e`: a failing `mkdir -p` printed one
+            # diagnostic and the run carried on, letting the following git/gh
+            # call decide the exit code. Keep that — an occupied or unwritable
+            # base must not become an unhandled traceback.
+            sys.stderr.write("mkdir -p {} failed: {}\n".format(base, exc.strerror or exc))
+    # After makedirs, not before: a check-then-create window is exactly what a
+    # planted symlink would slip through (exist_ok accepts a link to a dir).
+    problem = _guard_base(base)
+    if problem:
+        sys.stderr.write(problem + "\n")
+        return 1
+
     if cmd == "remove":
         _git(["git", "worktree", "remove", "--force", wt])
         _rmtree_force(wt)
         _git(["git", "worktree", "prune"])
         print("removed {}".format(wt))
         return 0
-    if cmd != "ensure":
-        sys.stderr.write("unknown command: {}\n".format(cmd))
-        return 2
-
-    try:
-        os.makedirs(base, exist_ok=True)
-    except OSError as exc:
-        # The shell had no `set -e`: a failing `mkdir -p` printed one diagnostic
-        # and the run carried on, letting the following git/gh call decide the
-        # exit code. Keep that — an occupied or unwritable base must not become
-        # an unhandled traceback.
-        sys.stderr.write("mkdir -p {} failed: {}\n".format(base, exc.strerror or exc))
 
     # Worktree mode when the current directory IS the target repo; else clone
     # mode. (Short-circuit like the shell: rev-parse only runs on a slug match.)

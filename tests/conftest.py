@@ -46,6 +46,11 @@ _SCRIPT_SEAMS = [
     "GIT_WORK_TREE",
     "GH_TOKEN",
     "GITHUB_TOKEN",
+    # GH_CONFIG_DIR only redirects the config file: env tokens and a host
+    # override still steer gh at a developer's Enterprise account.
+    "GH_HOST",
+    "GH_ENTERPRISE_TOKEN",
+    "GITHUB_ENTERPRISE_TOKEN",
 ]
 
 

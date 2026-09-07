@@ -379,6 +379,9 @@ _CLEARED_VARS = (
     "GH_REPO",
     "GH_TOKEN",
     "GITHUB_TOKEN",
+    "GH_HOST",
+    "GH_ENTERPRISE_TOKEN",
+    "GITHUB_ENTERPRISE_TOKEN",
 )
 
 

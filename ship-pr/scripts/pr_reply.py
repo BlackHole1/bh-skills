@@ -88,7 +88,12 @@ def parse_concatenated_arrays(text: str) -> List[object]:
     """Flatten `gh api --paginate` output: one JSON array per page, concatenated
     back to back. The shell did `jq -s 'add // []'`; here a raw_decode loop
     walks the top-level values. Like jq erroring out (its stderr was silenced),
-    any malformed value — or a top-level non-array — yields []."""
+    any malformed value — or a top-level non-array — yields []. One leading
+    BOM is skipped like jq did (and like loads_json): a listing that fails to
+    parse reads as "no reply yet", which is exactly the double post this
+    script exists to prevent."""
+    if text.startswith("\ufeff"):
+        text = text[1:]
     decoder = json.JSONDecoder()
     items: List[object] = []
     idx = 0
