@@ -190,11 +190,14 @@ diff, and the `reply-to id` (flags: `--all`, `--full`, `--json`).
 
 Read the code each finding points at in the worktree, then judge each:
 
-- **Real** → fix in the worktree, run the project's checks, commit and push
-  (below). The bot re-reviews the new commit and resolves its own thread. For
-  many or subtle cross-cutting findings, fan the analysis out over subagents if
-  your harness has them (Claude Code `/workflows` or the Agent tool, Grok
-  `spawn_subagent`), and verify before changing code.
+- **Real** → fix in the worktree, run the checks the allowlist covers (the §3a
+  rule applies here too), commit and push (below). Fix only what the finding
+  names; a nearby bug or an untested path you notice on the way goes to the
+  user as a follow-up, not into the PR. The bot re-reviews the new commit and
+  resolves its own thread. For many or subtle cross-cutting findings, fan the
+  analysis out over subagents if your harness has them (Claude Code
+  `/workflows` or the Agent tool, Grok `spawn_subagent`), and verify before
+  changing code.
 - **False positive / won't-fix** → reply in-thread with a concise,
   code-grounded reason. Pipe the body — inline quoting breaks on apostrophes:
   ```bash
