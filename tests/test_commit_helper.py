@@ -1,4 +1,4 @@
-"""Integration tests for commit/scripts/commit_helper.py.
+"""Integration tests for pen-commit/scripts/commit_helper.py.
 
 Every test runs the script as a subprocess against a real throwaway git repo
 built by the conftest fixtures (isolated env: pinned identity 'Skills Test
@@ -20,16 +20,16 @@ import pytest
 import commit_helper
 
 SIGNOFF = "Signed-off-by: Skills Test <skills-test@example.com>"
-HELPER = Path(__file__).resolve().parent.parent / "commit" / "scripts" / "commit_helper.py"
+HELPER = Path(__file__).resolve().parent.parent / "pen-commit" / "scripts" / "commit_helper.py"
 
 
 def prepare(run_script, repo, *args, env=None):
-    return run_script("commit", "commit_helper.py", "prepare", *args, cwd=repo, env=env)
+    return run_script("pen-commit", "commit_helper.py", "prepare", *args, cwd=repo, env=env)
 
 
 def commit(run_script, repo, *args, stdin="chore: test\n", env=None):
     return run_script(
-        "commit", "commit_helper.py", "commit", *args, cwd=repo, stdin=stdin, env=env
+        "pen-commit", "commit_helper.py", "commit", *args, cwd=repo, stdin=stdin, env=env
     )
 
 
@@ -387,10 +387,10 @@ def test_commit_with_nothing_staged_dies(run_script, git_repo, git_commit):
 
 def test_usage_die_on_missing_or_unknown_subcommand(run_script, tmp_path):
     usage = "usage: commit_helper.py {prepare [zh|en] | commit <branch-slug>}\n"
-    r = run_script("commit", "commit_helper.py", cwd=tmp_path)
+    r = run_script("pen-commit", "commit_helper.py", cwd=tmp_path)
     assert r.returncode == 1
     assert r.stderr == usage
-    r = run_script("commit", "commit_helper.py", "frobnicate", cwd=tmp_path)
+    r = run_script("pen-commit", "commit_helper.py", "frobnicate", cwd=tmp_path)
     assert r.returncode == 1
     assert r.stderr == usage
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""commit_helper — owns every mutating git step for the commit skill, so the
+"""commit_helper — owns every mutating git step for the pen-commit skill, so the
 model never has to chain `git add`, branch creation, and `git commit` by hand
 (each chained command is a round-trip and a chance to get the order wrong).
 
@@ -12,7 +12,7 @@ Two subcommands:
       Language: an explicit `zh` or `en` wins and is recorded in this
       repo's .git/config, so later runs in the same repo default to it. With
       no argument the recorded value wins, falling back to `en`. The key is
-      shared with the create-pr skill, so setting it once covers both.
+      shared with the pen-pr skill, so setting it once covers both.
 
       Staging: if nothing is staged yet, stage everything (`git add -A`).
       Running the skill is the user's go-ahead, so an empty index means
@@ -38,7 +38,7 @@ Env knobs (all optional):
                               to allow committing straight onto any branch.
   COMMIT_DIFF_MAX_LINES       how many diff lines `prepare` prints (default 500).
   SKILLS_LANG_KEY             git config key holding the language record
-                              (default: skills.lang), shared with create-pr.
+                              (default: skills.lang), shared with pen-pr.
 
 Requires: Python 3.9+, git on PATH. Stdlib only. This skill installs
 standalone, so force_utf8/run_command/read_stdin_bytes are small local copies,

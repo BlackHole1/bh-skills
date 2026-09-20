@@ -23,8 +23,8 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS = {
-    "commit": REPO_ROOT / "commit" / "scripts",
-    "create-pr": REPO_ROOT / "create-pr" / "scripts",
+    "pen-commit": REPO_ROOT / "pen-commit" / "scripts",
+    "pen-pr": REPO_ROOT / "pen-pr" / "scripts",
     "ship-pr": REPO_ROOT / "ship-pr" / "scripts",
 }
 

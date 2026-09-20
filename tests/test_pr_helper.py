@@ -1,4 +1,4 @@
-"""Tests for create-pr/scripts/pr_helper.py.
+"""Tests for pen-pr/scripts/pr_helper.py.
 
 Two layers, because the script has two boundaries:
 
@@ -34,7 +34,7 @@ USAGE = "usage: pr_helper.py prepare [zh|en] [base-branch]"
 
 
 def prepare(run_script, repo, *args, env=None):
-    return run_script("create-pr", "pr_helper.py", "prepare", *args, cwd=repo, env=env)
+    return run_script("pen-pr", "pr_helper.py", "prepare", *args, cwd=repo, env=env)
 
 
 def state_of(stdout):
@@ -230,7 +230,7 @@ def test_language_recorded_under_shared_key(git_repo, git_commit, sh, run_script
     r = prepare(run_script, repo, "zh")
     assert r.returncode == 0, r.stderr
     assert state_of(r.stdout)["lang"] == "zh"
-    # The record lands under the commit skill's key, so one setting covers both.
+    # The record lands under the pen-commit skill's key, so one setting covers both.
     assert rev(sh, repo, "config", "--local", "--get", "skills.lang") == "zh"
     # A later run with no argument picks the record up.
     r = prepare(run_script, repo)
@@ -310,14 +310,14 @@ def test_template_none(git_repo, git_commit, sh, run_script):
 def test_not_a_repo(tmp_path, run_script):
     plain = tmp_path / "plain"
     plain.mkdir()
-    r = run_script("create-pr", "pr_helper.py", "prepare", cwd=plain)
+    r = run_script("pen-pr", "pr_helper.py", "prepare", cwd=plain)
     assert r.returncode == 0, r.stderr
     assert r.stdout == "STATE repo=no\n"
 
 
 def test_usage_failure_exit_1(run_script, tmp_path):
     for args in ([], ["frobnicate"]):
-        r = run_script("create-pr", "pr_helper.py", *args, cwd=tmp_path)
+        r = run_script("pen-pr", "pr_helper.py", *args, cwd=tmp_path)
         assert r.returncode == 1
         assert r.stderr.rstrip("\n") == USAGE
 
