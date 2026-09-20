@@ -5,7 +5,7 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = [
-    "commit/scripts",
-    "create-pr/scripts",
+    "pen-commit/scripts",
+    "pen-pr/scripts",
     "ship-pr/scripts",
 ]

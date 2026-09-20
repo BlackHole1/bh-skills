@@ -6,7 +6,7 @@
 
 ## Skills
 
-### `commit` — Conventional Commits 提交信息，中英文可选
+### `pen-commit` — Conventional Commits 提交信息，中英文可选
 
 为当前改动生成一条 [Conventional Commits](https://www.conventionalcommits.org/)
 规范的提交信息并提交。标题恒为英文，正文使用你选定的语言，解释这次改动
@@ -17,31 +17,31 @@
 `--interactive`（或说“让我确认”），它会展示信息并先征求你的选择。
 
 ```bash
-/commit          # 沿用本仓库记住的语言，顶层默认英文
-/commit --zh     # 中文正文，并记住，此后本仓库默认中文
-/commit --en     # 切回英文，同样记住
+/pen-commit          # 沿用本仓库记住的语言，顶层默认英文
+/pen-commit --zh     # 中文正文，并记住，此后本仓库默认中文
+/pen-commit --en     # 切回英文，同样记住
 ```
 
-### `create-pr` — PR 描述，中英文可选
+### `pen-pr` — PR 描述，中英文可选
 
 为当前分支开启 Pull Request：标题用英文 Conventional Commits，正文用你选定的语言
 编写。它读取分支上的 commit 来起草正文，当 commit 信息太少、不足以说明改动时再回退
 去看 diff。正文以“三十秒内读完”为目标：通常只有一小段；只在散文说不清、审查者需要自己
 去翻代码时才放 GitHub permalink，最多两个，并且指向真正说明问题的那个 commit：讲原因就
 指分支之前的代码，讲复杂实现就指分支上的代码。若分支上还有未提交的改动、或根本没有
-commit，它会先调用 `commit` skill。若该分支已存在 PR，则改为**更新**标题与正文而非
+commit，它会先调用 `pen-commit` skill。若该分支已存在 PR，则改为**更新**标题与正文而非
 重复开 PR，并保留模板里人工填写的内容。它只触碰当前分支的 PR，绝不合并、绝不改写
 历史。加 `-i` / `--interactive` 可先复核，`--draft` 则开草稿 PR。当你提出开 PR 时会
-自动触发，也可直接运行 `/create-pr`。
+自动触发，也可直接运行 `/pen-pr`。
 
 ```bash
-/create-pr              # 沿用本仓库记住的语言，顶层默认英文
-/create-pr --zh         # 中文正文，并记住，此后本仓库默认中文
-/create-pr --draft main # 针对指定 base 分支开草稿 PR
+/pen-pr              # 沿用本仓库记住的语言，顶层默认英文
+/pen-pr --zh         # 中文正文，并记住，此后本仓库默认中文
+/pen-pr --draft main # 针对指定 base 分支开草稿 PR
 ```
 
 两个 skill 共用同一份语言记录，存放在仓库 `.git/config` 的 `skills.lang`。它按仓库
-生效且不会进入版本库，因此在一个仓库里设定一次，之后所有 `/commit` 与 `/create-pr`
+生效且不会进入版本库，因此在一个仓库里设定一次，之后所有 `/pen-commit` 与 `/pen-pr`
 都会沿用。
 
 ### `ship-pr` — 看护 PR 直到就绪（仅 `-y` 时合并）
@@ -52,7 +52,7 @@ commit，它会先调用 `commit` skill。若该分支已存在 PR，则改为**
 话明确授权，如“绿了就直接合并”）时，才在就绪的那一刻执行 squash 合并，绝不会中途
 再问一次。运行这个 skill 本身就是对其写操作的授权，包括向 PR head 推送修复 commit
 以及 `-y` 时的合并，这些命令已预先放行，不会再被权限确认卡住。修复的 commit 统一
-交给 `commit` skill 生成；若修复累积到改变了 PR 的原有语义，则通过 `create-pr`
+交给 `pen-commit` skill 生成；若修复累积到改变了 PR 的原有语义，则通过 `pen-pr`
 刷新 PR 的标题与正文。它只在临时 worktree 中查看和修改 PR 代码，**绝不触碰你的
 工作区**；遇到有风险的情况（合并冲突、无法解释的失败、必需的门禁）会交回给你而非
 贸然猜测。在 Claude Code 上，当你要求 land / merge / ship / 看护某个 PR 时可以自动
@@ -113,7 +113,7 @@ python -m pytest
 ```
 
 测试位于仓库根目录的 `tests/`，刻意放在所有 skill 目录之外：安装 skill 只会复制
-它自己那个文件夹，把测试留在 `commit/`、`create-pr/`、`ship-pr/` 之外，用户机器上
+它自己那个文件夹，把测试留在 `pen-commit/`、`pen-pr/`、`ship-pr/` 之外，用户机器上
 就不会多出测试代码。`pyproject.toml` 已把各个 `scripts/` 目录加入 `pythonpath`，
 测试可以直接把脚本当普通模块导入。
 

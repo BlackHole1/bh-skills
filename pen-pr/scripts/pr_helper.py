@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""pr_helper — collects everything the create-pr skill needs to draft a pull
+"""pr_helper — collects everything the pen-pr skill needs to draft a pull
 request in one call, instead of a dozen shell round-trips that each recompute
 the same merge-base. Read-only apart from the language record.
 
@@ -8,7 +8,7 @@ the same merge-base. Read-only apart from the language record.
         Language: an explicit `zh` or `en` wins and is recorded in this repo's
         .git/config, so later runs in the same repo default to it. With no
         argument the recorded value wins, falling back to `en`. The key is
-        shared with the commit skill, so setting it once covers both.
+        shared with the pen-commit skill, so setting it once covers both.
 
         Base: an explicit base-branch overrides the repo's default branch.
 
@@ -31,7 +31,7 @@ Env knobs (all optional):
 Requires: Python 3.9+ (stdlib only) and git on PATH. gh is optional: a missing
 or unauthenticated gh degrades to gh=no in STATE, never a crash.
 
-create-pr is a standalone installable skill, so this file must not import from
+pen-pr is a standalone installable skill, so this file must not import from
 sibling skill directories; force_utf8/run_command below are intentional small
 local copies of the ship-pr gh_retry helpers.
 

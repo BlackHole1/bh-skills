@@ -1,6 +1,6 @@
 ---
-name: commit
-description: Write a Conventional Commits message for the current change and commit it. Use when the user asks to commit, wants a commit message written, or says 提交. Also what create-pr reaches for when a branch has no commits to open a PR from.
+name: pen-commit
+description: Write a Conventional Commits message for the current change and commit it. Use when the user asks to commit, wants a commit message written, or says 提交. Also what pen-pr reaches for when a branch has no commits to open a PR from.
 argument-hint: "[--zh | --en] [-i | --interactive]"
 allowed-tools: Bash(git diff *), Bash(git log *), Bash(git status *), Bash(*commit_helper.py*), Read, AskUserQuestion
 ---
@@ -27,7 +27,7 @@ python3 <skill-dir>/scripts/commit_helper.py prepare en    # --en or "in English
 
 The helper prints one `STATE` line, then recent commits, the staged stat, and the staged diff. Stop early when `repo=no` ("Not a git repository.") or when the output says `NO_CHANGES` (nothing to commit). Otherwise read these fields off `STATE`:
 
-- `lang=` is `en` or `zh`, already resolved from the argument, this repo's record, or the `en` default. The record lives in `.git/config` and is shared with the create-pr skill.
+- `lang=` is `en` or `zh`, already resolved from the argument, this repo's record, or the `en` default. The record lives in `.git/config` and is shared with the pen-pr skill.
 - `auto_staged=yes` means the helper staged everything for you with `git add -A`. Say so when you report the result.
 - `protected=yes` means the commit lands on a new branch that you name in step 5, including when `unborn=yes` (fresh repo, no commits yet).
 

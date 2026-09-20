@@ -1,5 +1,5 @@
 ---
-name: create-pr
+name: pen-pr
 description: Open or update the GitHub Pull Request for the current branch, with an English Conventional-Commits title and a short, reviewable body. Use when the user asks to open, create, or update a PR, wants a PR description written, or says 开 PR / 提 PR / 发 PR. Pass --zh for a Chinese body or --en for English, and the choice is remembered per repo. Not for merging, waiting on CI, or working through review comments.
 argument-hint: "[--zh | --en] [-i | --interactive] [--draft] [base-branch]"
 allowed-tools: Bash(git diff *), Bash(git log *), Bash(git status *), Bash(git rev-parse *), Bash(git push -u origin HEAD), Bash(git push origin HEAD), Bash(*pr_helper.py*), Bash(gh pr view *), Bash(gh pr create *), Bash(gh pr edit *), Bash(gh pr diff *), Bash(gh repo view *), Read, Skill, AskUserQuestion
@@ -11,7 +11,7 @@ Open, or refresh if one already exists, the GitHub Pull Request for the current 
 
 Running this skill is the go-ahead, so it applies directly. `-i` / `--interactive` (or "让我确认" / "let me confirm") shows the title and body and asks first. `--draft` opens a new PR as a draft.
 
-Guardrails that always hold: only the current branch and only its PR, no merge, no history rewrite, no force push, and the full title and body printed before they are applied. The only writes outside PR metadata are a plain push of the current branch, which a PR cannot exist without, and whatever the commit skill does when step 2 hands off to it.
+Guardrails that always hold: only the current branch and only its PR, no merge, no history rewrite, no force push, and the full title and body printed before they are applied. The only writes outside PR metadata are a plain push of the current branch, which a PR cannot exist without, and whatever the pen-commit skill does when step 2 hands off to it.
 
 > `<skill-dir>` below is this skill's base directory, the folder holding this SKILL.md, which your harness names when it loads a skill. Substitute the real absolute path: your working directory is the user's repo, not the skill. The helper is stdlib-only Python 3; run it with `python3`, or `python` where that alias is missing (typical on Windows).
 
@@ -25,7 +25,7 @@ python3 <skill-dir>/scripts/pr_helper.py prepare zh         # --zh or "用中文
 python3 <skill-dir>/scripts/pr_helper.py prepare en develop # --en against an explicit base
 ```
 
-It prints one `STATE` line, then the existing PR, the branch's commits, the diffstat, a capped branch diff, and the repo's PR template. The `lang=` field is already resolved from the argument, this repo's record, or the `en` default, and the record lives in `.git/config` shared with the commit skill.
+It prints one `STATE` line, then the existing PR, the branch's commits, the diffstat, a capped branch diff, and the repo's PR template. The `lang=` field is already resolved from the argument, this repo's record, or the `en` default, and the record lives in `.git/config` shared with the pen-commit skill.
 
 ## 2. Route on STATE
 
@@ -34,7 +34,7 @@ In this order:
 - `repo=no` gives "Not a git repository." and stops.
 - `gh=no` means the GitHub CLI could not read this repo, usually because it is unauthenticated or the remote is not on GitHub. Say so, suggest `gh auth login`, and stop.
 - `detached=yes` gives "You are on a detached HEAD. Check out a branch first." and stops, since there is no branch to open a PR from.
-- `dirty=yes` means work the PR would silently leave out, whether the branch has commits already or none at all. Invoke the **commit** skill to land it — Claude Code: the `Skill` tool, name `commit`; Codex: `$commit`; Grok and others: the `commit` skill, or read `<skill-dir>/../commit/SKILL.md` and follow it yourself if your harness cannot invoke another skill. Then run `prepare` again and read the fresh `STATE`. The commit skill stages the whole working tree, so say which files it swept in when you report the result. On a protected branch it also carves off a feature branch, which clears `on_base` below.
+- `dirty=yes` means work the PR would silently leave out, whether the branch has commits already or none at all. Invoke the **pen-commit** skill to land it — Claude Code: the `Skill` tool, name `pen-commit`; Codex: `$pen-commit`; Grok and others: the `pen-commit` skill, or read `<skill-dir>/../pen-commit/SKILL.md` and follow it yourself if your harness cannot invoke another skill. Then run `prepare` again and read the fresh `STATE`. The pen-commit skill stages the whole working tree, so say which files it swept in when you report the result. On a protected branch it also carves off a feature branch, which clears `on_base` below.
 - `commits=0` at this point means the branch holds nothing beyond `base` and there was nothing to commit either. Say so and stop.
 - `on_base=yes` gives "You are on the base branch `<base>`. Switch to a feature branch." and stops, since a branch cannot open a PR against itself.
 
@@ -139,15 +139,15 @@ In update mode, add one line on how this differs from the live title and body, s
 - Otherwise a non-zero `ahead` calls for `git push origin HEAD`, a plain push of the current branch and never `--force`.
 - Otherwise push nothing.
 
-Write the complete body with your file-writing tool to a temp path (for example `/tmp/create-pr-body.md`), then pass that path with `--body-file`. Do not embed the body in a shell heredoc or `$(...)` — a PR template or generated body can contain `EOF` and close a heredoc early, after which later body text is parsed as shell. The file path keeps backticks, `#`, `$`, `!`, and `[]()` literal without escaping.
+Write the complete body with your file-writing tool to a temp path (for example `/tmp/pen-pr-body.md`), then pass that path with `--body-file`. Do not embed the body in a shell heredoc or `$(...)` — a PR template or generated body can contain `EOF` and close a heredoc early, after which later body text is parsed as shell. The file path keeps backticks, `#`, `$`, `!`, and `[]()` literal without escaping.
 
 ### 9a. Create
 
 Add `--draft` when requested, and `--base <base>` only when overriding the repo default.
 
 ```bash
-# body already written to /tmp/create-pr-body.md
-gh pr create --title "type(scope): description" --body-file /tmp/create-pr-body.md
+# body already written to /tmp/pen-pr-body.md
+gh pr create --title "type(scope): description" --body-file /tmp/pen-pr-body.md
 ```
 
 ### 9b. Update
@@ -156,8 +156,8 @@ gh pr create --title "type(scope): description" --body-file /tmp/create-pr-body.
 
 ```bash
 gh pr view <number> --json body -q .body
-# write merged body to /tmp/create-pr-body.md, then:
-gh pr edit <number> --body-file /tmp/create-pr-body.md
+# write merged body to /tmp/pen-pr-body.md, then:
+gh pr edit <number> --body-file /tmp/pen-pr-body.md
 # add --title only when step 6 decided the title genuinely changed
 ```
 

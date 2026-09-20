@@ -99,7 +99,7 @@ headRefName=$(gh pr view "$PR" --json headRefName -q .headRefName)
 headRepo=$(gh pr view "$PR" --json headRepositoryOwner,headRepository \
   -q '.headRepositoryOwner.login + "/" + .headRepository.name')   # owner/repo of the head
 # edit files under "$wt", run the checks the allowlist covers there, then commit
-# through the commit skill with "$wt" as the working directory (SKILL.md,
+# through the pen-commit skill with "$wt" as the working directory (SKILL.md,
 # "Committing and PR hygiene"), then:
 git -C "$wt" push origin "HEAD:$headRefName"    # same-repo PR; never --force
 # fork PR — push to the fork instead (needs write access to it):

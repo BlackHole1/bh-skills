@@ -101,7 +101,7 @@ Pin and reuse these fields for the whole run:
 | `headRefName` | push destination branch name |
 | `headRepo` | push URL for fork PRs (`https://github.com/<headRepo>.git`); same as `REPO` for same-repo heads |
 
-No PR resolvable → ask which (or offer create-pr). Already `MERGED`/`CLOSED` →
+No PR resolvable → ask which (or offer pen-pr). Already `MERGED`/`CLOSED` →
 report and stop.
 
 ## Isolated worktree
@@ -212,9 +212,9 @@ One push + several replies beats many tiny round-trips.
 
 #### Committing and PR hygiene
 
-- **Every commit goes through the commit skill** — Claude Code: the `Skill`
-  tool, name `commit`; Codex: `$commit`; Grok and others: the `commit` skill. If
-  your harness cannot invoke another skill, read `<skill-dir>/../commit/SKILL.md`
+- **Every commit goes through the pen-commit skill** — Claude Code: the `Skill`
+  tool, name `pen-commit`; Codex: `$pen-commit`; Grok and others: the `pen-commit` skill. If
+  your harness cannot invoke another skill, read `<skill-dir>/../pen-commit/SKILL.md`
   and follow it yourself. Either way, run its steps with the worktree as the
   working directory. On the worktree's
   detached HEAD it carves a temporary branch — fine. Push the head back with
@@ -222,7 +222,7 @@ One push + several replies beats many tiny round-trips.
   (`git -C "$wt" switch --detach && git -C "$wt" branch -D <temp>`) so the
   shared repo gains no stray branches.
 - **If your accumulated fixes change what the PR means** — its title or body no
-  longer honest about the diff — refresh them with the **create-pr skill**,
+  longer honest about the diff — refresh them with the **pen-pr skill**,
   which updates an open PR's title and body in place and preserves
   human-written content. Its `prepare` routing stops on a detached checkout;
   you already hold the PR number and diff, so apply its update path

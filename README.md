@@ -6,7 +6,7 @@ Personal agent [skills](https://github.com/vercel-labs/skills) for Claude Code, 
 
 ## Skills
 
-### `commit` — Conventional Commits messages, in English or Chinese
+### `pen-commit` — Conventional Commits messages, in English or Chinese
 
 Writes a [Conventional Commits](https://www.conventionalcommits.org/) message
 for your change and commits it. The subject is always English; the body is
@@ -19,12 +19,12 @@ pushes, never amends, and never rewrites history. Add `-i` / `--interactive`
 (or say "让我确认") to review and choose before it commits.
 
 ```bash
-/commit          # this repo's remembered language, English by default
-/commit --zh     # Chinese body, and remembered for this repo from now on
-/commit --en     # back to English, likewise remembered
+/pen-commit          # this repo's remembered language, English by default
+/pen-commit --zh     # Chinese body, and remembered for this repo from now on
+/pen-commit --en     # back to English, likewise remembered
 ```
 
-### `create-pr` — PR descriptions, in English or Chinese
+### `pen-pr` — PR descriptions, in English or Chinese
 
 Opens a Pull Request for your current branch, with an English Conventional
 Commits title and a Markdown body in your chosen language. It reads the
@@ -34,22 +34,22 @@ usually one short paragraph, with a GitHub permalink only where prose alone
 would leave a reviewer hunting, at most two, and pinned to the commit that
 actually makes the point, the pre-branch one for a cause and the branch tip for
 an intricate implementation. If the branch has uncommitted
-work or no commits at all, it runs the `commit` skill first. If a PR already
+work or no commits at all, it runs the `pen-commit` skill first. If a PR already
 exists, it *updates* the title and body instead of opening a duplicate,
 preserving any hand-curated template content. It only ever touches the current
 branch's PR, never merges, and never rewrites history. Add `-i` /
 `--interactive` to review first, or `--draft` to open a draft.
-Triggers on its own when you ask for a PR, or run `/create-pr` directly.
+Triggers on its own when you ask for a PR, or run `/pen-pr` directly.
 
 ```bash
-/create-pr              # this repo's remembered language, English by default
-/create-pr --zh         # Chinese body, and remembered for this repo from now on
-/create-pr --draft main # draft PR against an explicit base branch
+/pen-pr              # this repo's remembered language, English by default
+/pen-pr --zh         # Chinese body, and remembered for this repo from now on
+/pen-pr --draft main # draft PR against an explicit base branch
 ```
 
 Both skills share one language record, stored as `skills.lang` in the repo's
 `.git/config`. It is per-repo and never committed, so setting it once in a repo
-covers every later `/commit` and `/create-pr` there.
+covers every later `/pen-commit` and `/pen-pr` there.
 
 ### `ship-pr` — babysit a PR until it is ready (merge only with `-y`)
 
@@ -62,8 +62,8 @@ needed") and it squash-merges the moment that gate holds — never by a mid-run
 question. Running the skill is your go-ahead for its writes — pushing fix
 commits to the PR head and, with `-y`, the merge — so those are pre-approved
 and won't stall on permission prompts. Commits are written through the
-`commit` skill, and if the fixes grow to change what the PR means it refreshes
-the title and body through `create-pr`. It inspects and edits PR code only in a
+`pen-commit` skill, and if the fixes grow to change what the PR means it refreshes
+the title and body through `pen-pr`. It inspects and edits PR code only in a
 throwaway worktree, never your checkout, and surfaces anything risky (merge
 conflicts, unexplained failures, required gates) instead of guessing. On Claude
 Code it can auto-trigger when you ask to land / merge / ship / babysit a PR;
@@ -129,7 +129,7 @@ python -m pytest
 
 Tests live in `tests/` at the repo root, deliberately outside every skill
 directory: installing a skill copies its own folder, so keeping the suite out of
-`commit/`, `create-pr/`, and `ship-pr/` means no test code lands on a user's
+`pen-commit/`, `pen-pr/`, and `ship-pr/` means no test code lands on a user's
 machine. `pyproject.toml` puts each `scripts/` directory on `pythonpath` so the
 tests import the helpers as plain modules.
 
