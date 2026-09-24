@@ -92,7 +92,7 @@ here only so it's recognizable and explicitly avoided.
 Never edit the user's checkout. Work in the worktree synced to the PR head:
 
 ```bash
-wt=$(python3 <skill-dir>/scripts/pr_worktree.py ensure "$PR")   # detached worktree at the PR head
+wt=$(python3 <skill-dir>/scripts/pr_worktree.py ensure "$PR" "$OWNER/$REPO")   # detached worktree at the PR head
 # Ref names come from the PR author, so hold them in variables and quote them
 # rather than pasting the raw value into a command line.
 headRefName=$(gh pr view "$PR" --json headRefName -q .headRefName)
@@ -104,7 +104,7 @@ headRepo=$(gh pr view "$PR" --json headRepositoryOwner,headRepository \
 git -C "$wt" push origin "HEAD:$headRefName"    # same-repo PR; never --force
 # fork PR — push to the fork instead (needs write access to it):
 #   git -C "$wt" push "https://github.com/$headRepo.git" "HEAD:$headRefName"
-python3 <skill-dir>/scripts/pr_worktree.py remove "$PR"         # after the PR is merged
+python3 <skill-dir>/scripts/pr_worktree.py remove "$PR" "$OWNER/$REPO"   # after the PR is merged
 ```
 
 Whether it's a fork:
